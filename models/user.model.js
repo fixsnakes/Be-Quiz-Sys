@@ -1,9 +1,4 @@
 
-/**
- * @param {Sequelize} sequelize
- * @param {DataTypes} DataTypes
- */
-
 export const UserModel = (sequelize,DataTypes) => {
     const User = sequelize.define("User",{
         id: {

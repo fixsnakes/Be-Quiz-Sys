@@ -16,7 +16,7 @@ export const signup = async (req ,res) => {
     try{
         const {fullName, email, password, role} = req.body;
 
-        if (!fullName || !email || ! password || !role){
+        if (!fullName || !email || !password || !role){
             return res.status(400).send({message: "Need to full information"});
         }
 
@@ -43,12 +43,15 @@ export const signin = async (req,res) => {
             return res.status(400).send({message: "Need full information"})
         }
 
-        const user = db.User.findOne({where: {email: email}})
-
+        const user = await db.User.findOne({where: {email: email}})
+        
+        console.log(user)
         if(!user){
             return res.status(404).send({message: 'Not found email'})
 
         }
+
+        console.log(user.password)
 
         const passwordisValid = (user.password === password)
 

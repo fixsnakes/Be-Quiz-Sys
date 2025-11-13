@@ -1,12 +1,12 @@
-import dbConfig from "../config/db.config";
+import dbConfig from "../config/db.config.js";
 import { Sequelize,DataTypes } from "sequelize";
 
 
-import { UserModel } from "./user.model";
+import { UserModel } from "./user.model.js";
 
 const sequelize = new Sequelize(
   dbConfig.DB,
-  dbConfig.HOST,
+  dbConfig.USER,
   dbConfig.PASSWORD,
   {
     host:dbConfig.HOST,
@@ -14,6 +14,8 @@ const sequelize = new Sequelize(
     pool: dbConfig.pool
   }
 )
+
+
 
 const db = {}
 
