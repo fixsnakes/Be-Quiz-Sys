@@ -3,6 +3,10 @@ import authConfig from '../config/auth.config.js'
 import jwt from 'jsonwebtoken'
 
 import express from 'express'
+import { UserModel } from '../models/user.model.js'
+import { where } from 'sequelize'
+import dbConfig from '../config/db.config.js'
+import { config } from 'dotenv'
 
 const app = express()
 const User = db.User;
@@ -31,4 +35,43 @@ export const signup = async (req ,res) => {
 }
 
 
-export const signin = async (req,res)
+export const signin = async (req,res) => {
+    try{
+        const {email,password} = req.body;
+
+        if (!email || !password) {
+            return res.status(400).send({message: "Need full information"})
+        }
+
+        const user = db.User.findOne({where: {email: email}})
+
+        if(!user){
+            return res.status(404).send({message: 'Not found email'})
+
+        }
+
+        const passwordisValid = (user.password === password)
+
+        if(!passwordisValid){
+            return res.status(401).send({access_token: null, message: "Wrong password!!"})
+        }
+
+        const token = jwt.sign({id:user.id},authConfig.secret,{expiresIn: authConfig.jwtExpiration})
+
+        user.last_login = new Date();
+
+        await user.save()
+
+        res.status(200).send({
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            role: user.role,
+            accessToken: token
+        })
+
+
+    } catch(error){
+        res.status(500).send({message: error.message})
+    }
+}

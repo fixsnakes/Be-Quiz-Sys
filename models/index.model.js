@@ -22,6 +22,4 @@ db.sequelize = sequelize
 
 db.User = UserModel(sequelize,Sequelize);
 
-
-
 export default db;
