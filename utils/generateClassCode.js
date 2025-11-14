@@ -10,3 +10,4 @@ export const genCode = (lengthCode) => {
 
     return result
 }
+

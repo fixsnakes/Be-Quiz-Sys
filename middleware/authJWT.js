@@ -18,17 +18,20 @@ export const verifyToken = (req,res,next) => {
         if (err){
             return res.status(404).send({messgae: "Token expried or not valid"})
         }
-
+        
+        console.log(decoded)
         req.userId = decoded.id;
         req.role = decoded.role
+        next();
 
     })
 
-    next();
+
 }
 
 
 export const verifyTeacher = (req, res, next) => {
+    
     if (req.role !== 'teacher'){
         return res.status(403).send({message: 'This action need role teacher'});
     }

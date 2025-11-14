@@ -1,7 +1,7 @@
 
 import { DataTypes } from "sequelize";
-import sequelize from "../config/db.config";
-
+import sequelize from "../config/db.config.js";
+import { genCode } from "../utils/generateClassCode.js";
 // define model classes model
 const ClassesModel = sequelize.define('Classes', {
         id: {
@@ -37,8 +37,6 @@ const ClassesModel = sequelize.define('Classes', {
         updatedAt:false,
         tableName: 'Classes',
         
-        
-        
         //Hooks kiem tra truoc khi tao class gen code xem co bi trung khong?
         hooks: {
             beforeValidate: async (classInstance, options) => {
@@ -50,7 +48,7 @@ const ClassesModel = sequelize.define('Classes', {
                     
                     while(!iscodeUnique){
                         code = genCode(6).toUpperCase();
-                        const exsistingCode = await Classes.findOne({where: {classCode: code}});
+                        const exsistingCode = await ClassesModel.findOne({where: {classCode: code}});
                         if(!exsistingCode){
                             classInstance.classCode = code
                             break;

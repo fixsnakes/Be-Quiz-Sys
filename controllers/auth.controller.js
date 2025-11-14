@@ -2,9 +2,8 @@
 import authConfig from '../config/auth.config.js'
 import jwt from 'jsonwebtoken'
 
-import UserModel from '../models/user.model.js';
 
-
+import {UserModel} from '../models/index.model.js'
 // Sign In / Sign Up module
 
 export const signup = async (req ,res) => {
@@ -41,7 +40,7 @@ export const signin = async (req,res) => {
 
         const user = await UserModel.findOne({where: {email: email}})
         
-        console.log(user)
+
         if(!user){
             return res.status(404).send({message: 'Not found email'})
 
@@ -53,7 +52,7 @@ export const signin = async (req,res) => {
             return res.status(401).send({access_token: null, message: "Wrong password!!"})
         }
 
-        const token = jwt.sign({id:user.id},authConfig.secret,{expiresIn: authConfig.jwtExpiration})
+        const token = jwt.sign({id:user.id, role:user.role},authConfig.secret,{expiresIn: authConfig.jwtExpiration})
 
         user.last_login = new Date();
 
