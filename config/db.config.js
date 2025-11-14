@@ -1,4 +1,5 @@
 import 'dotenv/config.js'; // Tải biến môi trường
+import { Sequelize } from 'sequelize';
 
 const dbConfig = {
   HOST: process.env.DB_HOST,
@@ -14,4 +15,16 @@ const dbConfig = {
   }
 };
 
-export default dbConfig;
+const sequelize = new Sequelize(
+  dbConfig.DB,
+  dbConfig.USER,
+  dbConfig.PASSWORD,
+  {
+    host:dbConfig.HOST,
+    dialect: dbConfig.dialect,
+    pool: dbConfig.pool
+  }
+)
+
+
+export default sequelize;

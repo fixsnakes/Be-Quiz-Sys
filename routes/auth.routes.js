@@ -10,7 +10,7 @@ const authRoutes = (app) => {
         next()
     })
 
-    app.post('/api/auth/signup' ,[CheckDuplicateEmail],signup);
+    app.post('/api/auth/signup' ,CheckDuplicateEmail,signup);
     app.post('/api/auth/signin',signin)
 }
 

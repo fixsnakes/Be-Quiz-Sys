@@ -1,14 +1,13 @@
-import { where } from "sequelize";
-import db from "../models/index.model.js";
 
-const User = db.User
-
+import UserModel from "../models/user.model.js";
 
 const CheckDuplicateEmail = async(req,res,next) => {
     try{
-        const user = await User.findOne({where: {
+        const user = await UserModel.findOne({where: {
             email:req.body.email
         }});
+
+        
 
         if(user){
             return res.status(400).send({message: 'Email existed'})
@@ -16,7 +15,7 @@ const CheckDuplicateEmail = async(req,res,next) => {
 
         next()
     } catch(error){
-        return res.status(500).send({message: error.message})
+        return res.status(500).send({message: "A" + error.message})
     }
 }
 

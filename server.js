@@ -2,7 +2,8 @@ import express from "express";
 
 import 'dotenv/config.js';
 import cors from 'cors'; 
-import db from "./models/index.model.js";
+
+import sequelize from "./config/db.config.js";
 
 import authRoutes from "./routes/auth.routes.js";
 
@@ -12,7 +13,7 @@ const app = express()
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 
-db.sequelize.sync().then(()=>{
+sequelize.sync().then(()=>{
     console.log('Database synced')
 }).catch(error => {console.error(error.message)})
 

@@ -1,16 +1,11 @@
-import db from '../models/index.model.js'
+
 import authConfig from '../config/auth.config.js'
 import jwt from 'jsonwebtoken'
 
-import express from 'express'
-import { UserModel } from '../models/user.model.js'
-import { where } from 'sequelize'
-import dbConfig from '../config/db.config.js'
-import { config } from 'dotenv'
+import UserModel from '../models/user.model.js';
 
-const app = express()
-const User = db.User;
 
+// Sign In / Sign Up module
 
 export const signup = async (req ,res) => {
     try{
@@ -19,8 +14,9 @@ export const signup = async (req ,res) => {
         if (!fullName || !email || !password || !role){
             return res.status(400).send({message: "Need to full information"});
         }
-
-        const user = await User.create({
+        
+        
+        const user = await UserModel.create({
             fullName: fullName,
             email: email,
             password: password,
@@ -43,15 +39,13 @@ export const signin = async (req,res) => {
             return res.status(400).send({message: "Need full information"})
         }
 
-        const user = await db.User.findOne({where: {email: email}})
+        const user = await UserModel.findOne({where: {email: email}})
         
         console.log(user)
         if(!user){
             return res.status(404).send({message: 'Not found email'})
 
         }
-
-        console.log(user.password)
 
         const passwordisValid = (user.password === password)
 

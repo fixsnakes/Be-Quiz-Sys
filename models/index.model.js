@@ -1,27 +1,18 @@
 import dbConfig from "../config/db.config.js";
-import { Sequelize,DataTypes } from "sequelize";
 
 
-import { UserModel } from "./user.model.js";
-
-const sequelize = new Sequelize(
-  dbConfig.DB,
-  dbConfig.USER,
-  dbConfig.PASSWORD,
-  {
-    host:dbConfig.HOST,
-    dialect: dbConfig.dialect,
-    pool: dbConfig.pool
-  }
-)
+import UserModel from "./user.model.js";
+import ClassesModel from "./classes.model.js";
 
 
 
-const db = {}
+UserModel.hasMany(db.ClassesModel, {
+  foreignKey: 'teacher_id',
+  as: 'taughtClasses' // Các lớp giáo viên dạy
+});
+ClassesModel.belongsTo(db.UserModel, {
+  foreignKey: 'teacher_id',
+  as: 'teacher' // Giáo viên của lớp
+});
 
-db.Sequelize = Sequelize
-db.sequelize = sequelize
 
-db.User = UserModel(sequelize,Sequelize);
-
-export default db;

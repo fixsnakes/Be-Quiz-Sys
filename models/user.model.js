@@ -1,51 +1,53 @@
 
-export const UserModel = (sequelize,DataTypes) => {
-    const User = sequelize.define("User",{
-        id: {
-            type: DataTypes.INTEGER,
-            primaryKey: true,
-            autoIncrement: true,
-        },
 
-        fullName:{
-            type: DataTypes.STRING,
-            allowNull: false
-        },
+import sequelize from "../config/db.config.js";
+import { DataTypes } from "sequelize";
 
-        email:{
-            type: DataTypes.STRING,
-            allowNull: false,
-            unique: true,
-            validate: {
-                isEmail: true
-            }
+const UserModel = sequelize.define("User",{
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+    },
 
-        },
+    fullName:{
+        type: DataTypes.STRING,
+        allowNull: false
+    },
 
-        password: {
-            type: DataTypes.STRING,
-            allowNull: false
+    email:{
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+        validate: {
+            isEmail: true
+        }
 
-            
-        },
+    },
 
-        role: {
-            type: DataTypes.ENUM('student','teacher'),
-            allowNull: false,
-            defaultValue: 'student'
-        },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false
 
-        last_login: {
-            type: DataTypes.DATE
-        }},{
-            timestamps: true,
-            createdAt: 'created_at',
-            updatedAt: false,
-            tableName: 'User'
+        
+    },
 
-        }    
-    );
+    role: {
+        type: DataTypes.ENUM('student','teacher'),
+        allowNull: false,
+        defaultValue: 'student'
+    },
 
-    return User;
-}
+    last_login: {
+        type: DataTypes.DATE
+    }},{
+        timestamps: true,
+        createdAt: 'created_at',
+        updatedAt: false,
+        tableName: 'User'
+
+    }    
+);
+
+export default UserModel;
 
