@@ -1,16 +1,31 @@
 import UserModel from "./user.model.js";
 import ClassesModel from "./classes.model.js";
-
-// Đảm bảo các mối quan hệ được định nghĩa đúng
+import ClassStudentModel from "./class_student.model.js";
+// User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
-  foreignKey: 'teacher_id',  // Khóa ngoại trong bảng Classes
-  as: 'classes'        // Alias để truy cập các lớp dạy
+  foreignKey: 'teacher_id', 
+  as: 'classes'     
 });
 
 ClassesModel.belongsTo(UserModel, {
-  foreignKey: 'teacher_id',  // Khóa ngoại trong bảng Classes
-  as: 'teacher'              // Alias để truy cập giáo viên của lớp
+  foreignKey: 'teacher_id',  
+  as: 'teacher'            
+});
+
+// User(Student) N-N Classes through (ClassStudent)
+UserModel.belongsToMany(ClassesModel,{
+  through: ClassStudentModel,
+  foreignKey: 'student_id',
+  otherKey: 'class_id',
+  as: 'joinedClasses'
+});
+
+ClassesModel.belongsToMany(UserModel,{
+  through: ClassStudentModel,
+  foreignKey: 'class_id',
+  otherKey: 'student_id',
+  as: 'students'
 });
 
 
-export { UserModel, ClassesModel };
+export { UserModel, ClassesModel, ClassStudentModel };

@@ -1,4 +1,4 @@
-import { UserModel, ClassesModel } from "../models/index.model.js";  // Import từ index.model.js
+import { UserModel, ClassesModel,ClassStudentModel } from "../models/index.model.js";  // Import từ index.model.js
 
 export const createClass = async (req, res) => {
     try {
@@ -21,28 +21,52 @@ export const createClass = async (req, res) => {
     }
 };
 
-// Get list class for teacher
+// Get list class for teacher and student
 
 export const getClasses = async (req, res) => {
-    const teacher_id = req.userId;
+    
 
     try {
-        const taughtClasses = await UserModel.findOne({
-            where: {
-                id: teacher_id
-            },
-            include: [
-                {
-                    model: ClassesModel,
-                    as: 'classes' // 'teacher' ,
-                
+        const userId = req.userId;
+        const role = req.role;
 
-                }
-            ],
-            attributes: ['id','fullName','role','email']
-        });
+        if(role === 'teacher'){
+            const taughtClasses = await UserModel.findOne({
+                where: {
+                    id: userId
+                },
+                include: [
+                    {
+                        model: ClassesModel,
+                        as: 'classes' // 'teacher' ,
+                    
+                    }
+                ],
+                attributes: ['id','fullName','role','email']
+            });
+    
+            return res.status(200).send(taughtClasses);
 
-        return res.status(200).send(taughtClasses);
+        }
+
+        else{
+            const joinedClass = await UserModel.findOne({
+                where: {
+                    id: userId,
+                },
+                include: [
+                    {
+                        model: ClassesModel,
+                        as: 'joinedClasses' // 'teacher' ,
+                    
+                    }
+                ],
+                attributes: ['id','fullName','role','email']
+            });
+    
+            return res.status(200).send(joinedClass);
+        };
+        
 
     } catch (error) {
         res.status(500).send({ message: error.message });
@@ -51,4 +75,54 @@ export const getClasses = async (req, res) => {
 
 // join class
 
-// export const joinClass = async (req,res)
+export const joinClassByCode = async (req, res) => {
+    try {
+        const role = req.role;
+        const userId = req.userId;
+        const code = req.query.code;
+
+
+        if (role === 'teacher') {
+            return res.status(400).send("You must be a student to join this class");
+        }
+
+        const joinClassInfo = await ClassesModel.findOne({
+            where: {
+                classCode: code.toUpperCase()
+            }
+        });
+
+        if (!joinClassInfo) {
+            return res.status(404).send("Class not found");
+        }
+
+        const existingEnrollment = await ClassStudentModel.findOne({
+            where: {
+                class_id: joinClassInfo.id,
+                student_id: userId          
+            }
+        });
+
+        if (existingEnrollment) {
+            if (existingEnrollment.is_ban) {
+                return res.status(400).send({ message: "You have been removed from this class" });
+            }
+            return res.status(400).send({ message: "You have already joined this class" });
+        }
+
+    
+        const classStudent = await ClassStudentModel.create({
+            class_id: joinClassInfo.id,
+            student_id: userId,
+            joined_at: new Date(),
+            is_ban: false  
+        });
+
+ 
+        return res.status(200).send({ message: "Join class success", class: classStudent });
+
+    } catch (error) {
+
+        return res.status(500).send({ message: error.message });
+    }
+};
