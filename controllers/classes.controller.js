@@ -126,3 +126,38 @@ export const joinClassByCode = async (req, res) => {
         return res.status(500).send({ message: error.message });
     }
 };
+
+
+export const GetStudentFromClass = async (req,res) => {
+    try{
+        const classCode = req.query.class;
+
+        const classInfor = await ClassesModel.findOne({
+            where: {
+                classCode: classCode
+            }
+        })
+
+        if(!classInfor){
+            return res.status(404).send("Class not found")
+        }
+
+        const listStudent = await ClassesModel.findOne({
+            where: {
+                id: classInfor.id
+            },
+            
+            include: [
+                {
+                    model: UserModel,
+                    as: "students"
+                }
+            ]
+
+        })
+
+        return res.status(200).send(listStudent)
+    }catch(error){
+        return res.status(500).send({message: error.message})
+    }
+}

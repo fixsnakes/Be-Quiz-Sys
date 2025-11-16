@@ -1,4 +1,4 @@
-import { createClass,getClasses,joinClassByCode } from "../controllers/classes.controller.js";
+import { createClass,getClasses,joinClassByCode,GetStudentFromClass } from "../controllers/classes.controller.js";
 import { verifyToken,verifyTeacher, verifyStudent } from "../middleware/authJWT.js";
 
 
@@ -11,6 +11,11 @@ const authClasses = (app) =>{
 
     //Join Class
     app.get('/api/classes/join',verifyToken,verifyStudent,joinClassByCode)
+
+    // Get student from class
+    app.get('/api/classes/students',verifyToken,verifyTeacher,GetStudentFromClass)
+
+
 }
 
 
