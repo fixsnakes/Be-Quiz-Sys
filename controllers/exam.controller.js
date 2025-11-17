@@ -1,4 +1,5 @@
-import { ExamModel, ClassesModel } from "../models/index.model.js";
+import { ExamModel, ClassesModel, ClassStudentModel } from "../models/index.model.js";
+import { Op } from "sequelize";
 
 export const createExam = async (req, res) => {
     try {
@@ -289,6 +290,162 @@ export const deleteExam = async (req, res) => {
         return res.status(200).send({ 
             message: 'Exam deleted successfully' 
         });
+
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+
+// Get all exams available for student (public exams + exams in student's classes)
+export const getAvailableExamsForStudent = async (req, res) => {
+    try {
+        const student_id = req.userId;
+        const { class_id } = req.query; // Optional: filter by class
+
+        // Lấy danh sách class_id mà student đã join
+        const studentClasses = await ClassStudentModel.findAll({
+            where: { student_id: student_id },
+            attributes: ['class_id']
+        });
+
+        const studentClassIds = studentClasses.map(sc => sc.class_id);
+
+        const orConditions = [
+            {
+                is_public: true,
+                class_id: null
+            }
+        ];
+
+        if (studentClassIds.length > 0) {
+            orConditions.push({
+                is_public: true,
+                class_id: {
+                    [Op.in]: studentClassIds
+                }
+            });
+        }
+
+        let whereCondition = {
+            [Op.or]: orConditions
+        };
+
+        if (class_id) {
+            const isMember = await ClassStudentModel.findOne({
+                where: {
+                    class_id,
+                    student_id
+                }
+            });
+
+            if (!isMember) {
+                return res.status(403).send({
+                    message: 'You are not a member of this class'
+                });
+            }
+
+            whereCondition = {
+                is_public: true,
+                class_id
+            };
+        }
+
+        const exams = await ExamModel.findAll({
+            where: whereCondition,
+            include: [
+                {
+                    model: ClassesModel,
+                    as: 'class',
+                    attributes: ['id', 'className', 'classCode'],
+                    required: false
+                }
+            ],
+            order: [['created_at', 'DESC']]
+        });
+
+        // Thêm thông tin về trạng thái exam (chưa bắt đầu, đang diễn ra, đã kết thúc)
+        const now = new Date();
+        const examsWithStatus = exams.map(exam => {
+            const examData = exam.toJSON();
+            const startTime = new Date(exam.start_time);
+            const endTime = new Date(exam.end_time);
+
+            if (now < startTime) {
+                examData.status = 'upcoming';
+            } else if (now >= startTime && now <= endTime) {
+                examData.status = 'ongoing';
+            } else {
+                examData.status = 'ended';
+            }
+
+            return examData;
+        });
+
+        return res.status(200).send(examsWithStatus);
+
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+
+// Get exam detail for student (không lộ đáp án)
+export const getExamDetailForStudent = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const student_id = req.userId;
+
+        const exam = await ExamModel.findOne({
+            where: { id },
+            include: [
+                {
+                    model: ClassesModel,
+                    as: 'class',
+                    attributes: ['id', 'className', 'classCode'],
+                    required: false
+                }
+            ]
+        });
+
+        if (!exam) {
+            return res.status(404).send({ message: 'Exam not found' });
+        }
+
+        if (!exam.is_public) {
+            return res.status(403).send({
+                message: 'This exam is private and only available to the creator'
+            });
+        }
+
+        if (exam.class_id) {
+            const isMember = await ClassStudentModel.findOne({
+                where: {
+                    class_id: exam.class_id,
+                    student_id
+                }
+            });
+
+            if (!isMember) {
+                return res.status(403).send({
+                    message: 'You are not a member of this class. Cannot view this exam.'
+                });
+            }
+        }
+
+        // Thêm thông tin về trạng thái exam
+        const now = new Date();
+        const examData = exam.toJSON();
+        const startTime = new Date(exam.start_time);
+        const endTime = new Date(exam.end_time);
+
+        if (now < startTime) {
+            examData.status = 'upcoming';
+        } else if (now >= startTime && now <= endTime) {
+            examData.status = 'ongoing';
+        } else {
+            examData.status = 'ended';
+        }
+
+        return res.status(200).send(examData);
 
     } catch (error) {
         return res.status(500).send({ message: error.message });

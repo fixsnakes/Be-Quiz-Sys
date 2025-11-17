@@ -1,5 +1,6 @@
-import { ExamSessionModel, ExamModel, UserModel, ClassesModel, ClassStudentModel } from "../models/index.model.js";
+import { ExamSessionModel, ExamModel, UserModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel } from "../models/index.model.js";
 import { genCode } from "../utils/generateClassCode.js";
+import { finalizeSessionResult } from "../services/exam_result.service.js";
 
 // Bắt đầu bài thi (Tạo exam session)
 export const startExam = async (req, res) => {
@@ -39,6 +40,13 @@ export const startExam = async (req, res) => {
         if (now > examEndTime) {
             return res.status(400).send({ 
                 message: 'Exam has ended' 
+            });
+        }
+
+        // Kiểm tra trạng thái public/private
+        if (!exam.is_public) {
+            return res.status(403).send({
+                message: 'This exam is private and cannot be accessed by students'
             });
         }
 
@@ -190,9 +198,10 @@ export const getCurrentSession = async (req, res) => {
         const sessionEndTime = new Date(session.end_time);
         
         if (now > sessionEndTime) {
-            await session.update({ status: 'expired' });
+            const { result } = await finalizeSessionResult(session, student_id);
             return res.status(400).send({ 
-                message: 'Exam session has expired' 
+                message: 'Exam session has expired and was auto-submitted',
+                result
             });
         }
 
@@ -223,6 +232,107 @@ export const getStudentSessions = async (req, res) => {
         });
 
         return res.status(200).send(sessions);
+
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+
+export const getSessionQuestionsForStudent = async (req, res) => {
+    try {
+        const { session_id } = req.params;
+        const student_id = req.userId;
+
+        const session = await ExamSessionModel.findOne({
+            where: {
+                id: session_id,
+                student_id: student_id
+            },
+            include: [
+                {
+                    model: ExamModel,
+                    as: 'exam',
+                    attributes: ['id', 'title', 'minutes', 'start_time', 'end_time']
+                }
+            ]
+        });
+
+        if (!session) {
+            return res.status(404).send({ 
+                message: 'Exam session not found or you do not have permission' 
+            });
+        }
+
+        const now = new Date();
+        const exam = session.exam_id ? await ExamModel.findOne({ where: { id: session.exam_id } }) : null;
+        if (exam && !exam.is_public) {
+            return res.status(403).send({
+                message: 'This exam is private and cannot be accessed by students'
+            });
+        }
+
+        if (exam && exam.class_id) {
+            const isMember = await ClassStudentModel.findOne({
+                where: {
+                    class_id: exam.class_id,
+                    student_id: student_id
+                }
+            });
+
+            if (!isMember) {
+                return res.status(403).send({
+                    message: 'You are not a member of this class. Cannot access this session.'
+                });
+            }
+        }
+
+        if (now > new Date(session.end_time)) {
+            const { result } = await finalizeSessionResult(session, student_id);
+            return res.status(400).send({
+                message: 'Exam session has expired and was auto-submitted',
+                result
+            });
+        }
+
+        const questions = await QuestionModel.findAll({
+            where: {
+                exam_id: session.exam_id
+            },
+            attributes: ['id', 'question_text', 'type', 'difficulty', 'order', 'image_url'],
+            include: [
+                {
+                    model: QuestionAnswerModel,
+                    as: 'answers',
+                    attributes: ['id', 'text']
+                }
+            ],
+            order: [['order', 'ASC']]
+        });
+
+        const sanitizedQuestions = questions.map(question => ({
+            id: question.id,
+            question_text: question.question_text,
+            type: question.type,
+            difficulty: question.difficulty,
+            order: question.order,
+            image_url: question.image_url,
+            answers: question.answers.map(answer => ({
+                id: answer.id,
+                text: answer.text
+            }))
+        }));
+
+        return res.status(200).send({
+            session: {
+                id: session.id,
+                exam_id: session.exam_id,
+                start_time: session.start_time,
+                end_time: session.end_time,
+                remaining_time_ms: new Date(session.end_time).getTime() - now.getTime()
+            },
+            exam: session.exam,
+            questions: sanitizedQuestions
+        });
 
     } catch (error) {
         return res.status(500).send({ message: error.message });

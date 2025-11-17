@@ -1,7 +1,8 @@
 import { 
     startExam, 
     getCurrentSession, 
-    getStudentSessions 
+    getStudentSessions,
+    getSessionQuestionsForStudent
 } from "../controllers/exam_session.controller.js";
 import { verifyToken, verifyStudent } from "../middleware/authJWT.js";
 
@@ -14,6 +15,9 @@ const examSessionRoutes = (app) => {
     
     // Lấy tất cả exam sessions của student
     app.get('/api/exam-sessions/my-sessions', verifyToken, verifyStudent, getStudentSessions);
+
+    // Lấy đề thi cho session
+    app.get('/api/sessions/:session_id/questions', verifyToken, verifyStudent, getSessionQuestionsForStudent);
 }
 
 export default examSessionRoutes;

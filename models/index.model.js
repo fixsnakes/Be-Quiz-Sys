@@ -4,15 +4,14 @@ import ClassStudentModel from "./class_student.model.js";
 import ExamModel from "./exam.model.js";
 import QuestionModel from "./question.model.js";
 import QuestionAnswerModel from "./question_answer.model.js";
-<<<<<<< Updated upstream
 import ExamFavoriteModel from "./exam_favorite.model.js";
 import ExamCommentModel from "./exam_comment.model.js";
 import ExamSessionModel from "./exam_session.model.js";
 import StudentAnswerModel from "./student_answer.model.js";
-=======
 import PostClassesModel from "./post_classes.model.js";
 import PostCommentsModel from "./post_comments.model.js";
->>>>>>> Stashed changes
+import ExamResultModel from "./exam_result.model.js";
+
 
 // User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
@@ -137,7 +136,6 @@ QuestionAnswerModel.belongsTo(QuestionModel, {
   as: 'question'
 });
 
-<<<<<<< Updated upstream
 // User N-N Exams through Exam_favorites (Favorite exams)
 UserModel.belongsToMany(ExamModel, {
   through: ExamFavoriteModel,
@@ -251,7 +249,38 @@ StudentAnswerModel.belongsTo(QuestionAnswerModel, {
   as: 'selectedAnswer'
 });
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel };
-=======
-export { UserModel, ClassesModel, ClassStudentModel,PostClassesModel,PostCommentsModel, ExamModel, QuestionModel, QuestionAnswerModel };
->>>>>>> Stashed changes
+
+// Exam_sessions 1-N Exam_results
+ExamSessionModel.hasMany(ExamResultModel, {
+  foreignKey: 'session_id',
+  as: 'results'
+});
+
+ExamResultModel.belongsTo(ExamSessionModel, {
+  foreignKey: 'session_id',
+  as: 'session'
+});
+
+// User(Student) 1-N Exam_results
+UserModel.hasMany(ExamResultModel, {
+  foreignKey: 'student_id',
+  as: 'examResults'
+});
+
+ExamResultModel.belongsTo(UserModel, {
+  foreignKey: 'student_id',
+  as: 'student'
+});
+
+// Exams 1-N Exam_results
+ExamModel.hasMany(ExamResultModel, {
+  foreignKey: 'exam_id',
+  as: 'results'
+});
+
+ExamResultModel.belongsTo(ExamModel, {
+  foreignKey: 'exam_id',
+  as: 'exam'
+});
+
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel,PostClassesModel,PostCommentsModel };

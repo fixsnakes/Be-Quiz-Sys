@@ -16,6 +16,8 @@ import examFavoriteRoutes from "./routes/exam_favorite.routes.js";
 import examCommentRoutes from "./routes/exam_comment.routes.js";
 import examSessionRoutes from "./routes/exam_session.routes.js";
 import studentAnswerRoutes from "./routes/student_answer.routes.js";
+import examResultRoutes from "./routes/exam_result.routes.js";
+import { startAutoSubmitScheduler } from "./services/exam_result.service.js";
 
 import postRoutes from "./routes/posts.routes.js";
 const app = express()
@@ -40,6 +42,9 @@ examCommentRoutes(app)
 examSessionRoutes(app)
 studentAnswerRoutes(app)
 postRoutes(app)
+examResultRoutes(app)
+
+startAutoSubmitScheduler();
 const PORT  =process.env.PORT || 5005;
 app.listen(PORT, () => {
     console.log(`Server đang chạy trên cổng ${PORT}`)
