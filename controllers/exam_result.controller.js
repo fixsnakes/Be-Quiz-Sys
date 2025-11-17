@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import sequelize from "../config/db.config.js";
 import { ExamResultModel, ExamSessionModel, StudentAnswerModel, ExamModel, QuestionModel, QuestionAnswerModel, UserModel, ClassStudentModel } from "../models/index.model.js";
 import { finalizeSessionResult } from "../services/exam_result.service.js";
+import { notifyExamSubmitted, notifyFeedbackUpdated } from "../services/notification.service.js";
 
 // Submit bài thi (nộp bài và tính điểm)
 export const submitExam = async (req, res) => {
@@ -37,6 +38,15 @@ export const submitExam = async (req, res) => {
                 message: 'Exam already submitted',
                 result
             });
+        }
+
+        // Gửi thông báo cho giáo viên khi student submit exam
+        try {
+            const score = result ? Number(result.total_score) : 0;
+            await notifyExamSubmitted(student_id, session.exam.id, score);
+        } catch (notifError) {
+            console.error('Error sending notification:', notifError);
+            // Không fail request nếu thông báo lỗi
         }
 
         return res.status(200).send({
@@ -456,6 +466,20 @@ export const updateFeedback = async (req, res) => {
                 }
             ]
         });
+
+        // Gửi thông báo cho student khi teacher cập nhật feedback
+        if (updatedResult && feedback) {
+            try {
+                await notifyFeedbackUpdated(
+                    updatedResult.student_id,
+                    updatedResult.exam.id,
+                    updatedResult.exam.title
+                );
+            } catch (notifError) {
+                console.error('Error sending notification:', notifError);
+                // Không fail request nếu thông báo lỗi
+            }
+        }
 
         return res.status(200).send({
             message: 'Feedback updated successfully',

@@ -11,6 +11,7 @@ import StudentAnswerModel from "./student_answer.model.js";
 import PostClassesModel from "./post_classes.model.js";
 import PostCommentsModel from "./post_comments.model.js";
 import ExamResultModel from "./exam_result.model.js";
+import NotificationModel from "./notification.model.js";
 
 
 // User(Teacher) 1-N Classes
@@ -280,4 +281,15 @@ ExamResultModel.belongsTo(ExamModel, {
   as: 'exam'
 });
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel,PostClassesModel,PostCommentsModel };
+// User 1-N Notifications
+UserModel.hasMany(NotificationModel, {
+  foreignKey: 'recipient_id',
+  as: 'notifications'
+});
+
+NotificationModel.belongsTo(UserModel, {
+  foreignKey: 'recipient_id',
+  as: 'recipient'
+});
+
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel };

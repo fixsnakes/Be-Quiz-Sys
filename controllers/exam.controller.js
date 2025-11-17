@@ -1,5 +1,6 @@
 import { ExamModel, ClassesModel, ClassStudentModel } from "../models/index.model.js";
 import { Op } from "sequelize";
+import { notifyExamAssignedToClass } from "../services/notification.service.js";
 
 export const createExam = async (req, res) => {
     try {
@@ -73,6 +74,16 @@ export const createExam = async (req, res) => {
             is_public: is_public || false,
             count: 0
         });
+
+        // Gửi thông báo cho students nếu exam được gắn vào class
+        if (class_id) {
+            try {
+                await notifyExamAssignedToClass(exam.id, class_id);
+            } catch (notifError) {
+                console.error('Error sending notification:', notifError);
+                // Không fail request nếu thông báo lỗi
+            }
+        }
 
         return res.status(201).send(exam);
 
@@ -228,6 +239,10 @@ export const updateExam = async (req, res) => {
             }
         }
 
+        // Lưu class_id cũ để kiểm tra xem có thay đổi không
+        const oldClassId = exam.class_id;
+        const newClassId = class_id !== undefined ? class_id : oldClassId;
+
         // Update exam
         const updateData = {};
         if (class_id !== undefined) updateData.class_id = class_id; // Cho phép set null để bỏ gắn exam
@@ -242,6 +257,16 @@ export const updateExam = async (req, res) => {
         if (is_public !== undefined) updateData.is_public = is_public;
 
         await exam.update(updateData);
+
+        // Gửi thông báo nếu exam được gắn vào class mới (từ null -> có giá trị, hoặc đổi class)
+        if (newClassId && newClassId !== oldClassId) {
+            try {
+                await notifyExamAssignedToClass(exam.id, newClassId);
+            } catch (notifError) {
+                console.error('Error sending notification:', notifError);
+                // Không fail request nếu thông báo lỗi
+            }
+        }
 
         // Return updated exam
         const updatedExam = await ExamModel.findOne({

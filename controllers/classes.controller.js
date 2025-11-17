@@ -1,4 +1,5 @@
-import { UserModel, ClassesModel,ClassStudentModel } from "../models/index.model.js";  // Import từ index.model.js
+import { UserModel, ClassesModel,ClassStudentModel } from "../models/index.model.js";
+import { notifyStudentJoinedClass } from "../services/notification.service.js";  // Import từ index.model.js
 
 export const createClass = async (req, res) => {
     try {
@@ -118,7 +119,14 @@ export const joinClassByCode = async (req, res) => {
             is_ban: false  
         });
 
- 
+        // Gửi thông báo cho giáo viên
+        try {
+            await notifyStudentJoinedClass(userId, joinClassInfo.id);
+        } catch (notifError) {
+            console.error('Error sending notification:', notifError);
+            // Không fail request nếu thông báo lỗi
+        }
+
         return res.status(200).send({ message: "Join class success", class: classStudent });
 
     } catch (error) {
