@@ -5,6 +5,7 @@ import ExamModel from "./exam.model.js";
 import QuestionModel from "./question.model.js";
 import QuestionAnswerModel from "./question_answer.model.js";
 import ExamFavoriteModel from "./exam_favorite.model.js";
+import ExamCommentModel from "./exam_comment.model.js";
 
 // User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
@@ -114,4 +115,37 @@ ExamFavoriteModel.belongsTo(ExamModel, {
   as: 'exam'
 });
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel };
+// User 1-N Exam_comments
+UserModel.hasMany(ExamCommentModel, {
+  foreignKey: 'user_id',
+  as: 'comments'
+});
+
+ExamCommentModel.belongsTo(UserModel, {
+  foreignKey: 'user_id',
+  as: 'user'
+});
+
+// Exam 1-N Exam_comments
+ExamModel.hasMany(ExamCommentModel, {
+  foreignKey: 'exam_id',
+  as: 'comments'
+});
+
+ExamCommentModel.belongsTo(ExamModel, {
+  foreignKey: 'exam_id',
+  as: 'exam'
+});
+
+// Exam_comments self-reference (parent-child relationship)
+ExamCommentModel.belongsTo(ExamCommentModel, {
+  foreignKey: 'parent_id',
+  as: 'parent'
+});
+
+ExamCommentModel.hasMany(ExamCommentModel, {
+  foreignKey: 'parent_id',
+  as: 'replies'
+});
+
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel };
