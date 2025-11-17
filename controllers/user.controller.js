@@ -1,5 +1,3 @@
-import { verifyToken } from "../middleware/authJWT.js";
-
 import UserModel from "../models/user.model.js";
 
 

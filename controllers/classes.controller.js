@@ -127,6 +127,7 @@ export const joinClassByCode = async (req, res) => {
     }
 };
 
+//get list student from class
 
 export const GetStudentFromClass = async (req,res) => {
     try{
@@ -162,6 +163,7 @@ export const GetStudentFromClass = async (req,res) => {
     }
 }
 
+//Ban student
 
 export const BanStudent = async(req,res) => {
     try{
@@ -186,6 +188,7 @@ export const BanStudent = async(req,res) => {
     }
 }
 
+// Delete Class
 export const DeleteClass = async(req,res) => {
     try{
 
