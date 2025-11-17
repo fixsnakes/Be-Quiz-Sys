@@ -3,7 +3,8 @@ import {
     getQuestionById, 
     getQuestions, 
     updateQuestion, 
-    deleteQuestion 
+    deleteQuestion,
+    updateQuestionOrder
 } from "../controllers/question.controller.js";
 import { verifyToken, verifyTeacher } from "../middleware/authJWT.js";
 
@@ -22,6 +23,9 @@ const questionRoutes = (app) => {
     
     // Delete question (only teacher who created it)
     app.delete('/api/questions/:id', verifyToken, verifyTeacher, deleteQuestion);
+    
+    // Update question order for an exam (bulk update)
+    app.put('/api/exams/:exam_id/questions/order', verifyToken, verifyTeacher, updateQuestionOrder);
 }
 
 export default questionRoutes;

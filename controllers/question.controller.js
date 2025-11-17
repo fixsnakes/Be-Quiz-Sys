@@ -52,6 +52,14 @@ export const createQuestion = async (req, res) => {
             }
         }
 
+        // Get max order for this exam to set new question order
+        const maxOrderQuestion = await QuestionModel.findOne({
+            where: { exam_id },
+            order: [['order', 'DESC']],
+            attributes: ['order']
+        });
+        const nextOrder = maxOrderQuestion ? (maxOrderQuestion.order + 1) : 1;
+
         // Create question
         const question = await QuestionModel.create({
             teacher_id,
@@ -59,7 +67,8 @@ export const createQuestion = async (req, res) => {
             question_text,
             image_url: image_url || null,
             type: type || 'multiple_choice',
-            difficulty: difficulty || 'medium'
+            difficulty: difficulty || 'medium',
+            order: nextOrder
         });
 
         // Create answers if provided
@@ -92,6 +101,80 @@ export const createQuestion = async (req, res) => {
         });
 
         return res.status(201).send(questionWithAnswers);
+
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+};
+
+// bulk update (cập nhật nhiều câu hỏi cùng lúc)
+export const updateQuestionOrder = async (req, res) => {
+    try {
+        const { exam_id } = req.params;
+        const { question_orders } = req.body; // Mảng chứa {question_id, order} của tất cả câu hỏi
+        const userId = req.userId;
+
+        if (!exam_id || !question_orders || !Array.isArray(question_orders)) {
+            return res.status(400).send({ 
+                message: 'Missing required fields: exam_id, question_orders (array)' 
+            });
+        }
+
+        // Kiểm tra đề thi tồn tại và thuộc về teacher này
+        const exam = await ExamModel.findOne({
+            where: {
+                id: exam_id,
+                created_by: userId
+            }
+        });
+
+        if (!exam) {
+            return res.status(404).send({ 
+                message: 'Exam not found or you do not have permission to update question order for this exam' 
+            });
+        }
+
+        // Kiểm tra tất cả câu hỏi thuộc về đề thi này và teacher này
+        const questionIds = question_orders.map(qo => qo.question_id);
+        const questions = await QuestionModel.findAll({
+            where: {
+                id: questionIds,
+                exam_id: exam_id,
+                teacher_id: userId
+            }
+        });
+
+        if (questions.length !== questionIds.length) {
+            return res.status(400).send({ 
+                message: 'Some questions not found or do not belong to this exam' 
+            });
+        }
+        // Tạo mảng các Promise để update song song
+        const updatePromises = question_orders.map(({ question_id, order }) => 
+            QuestionModel.update(
+                { order: order },
+                { where: { id: question_id, exam_id: exam_id, teacher_id: userId } }
+            )
+        );
+        await Promise.all(updatePromises);
+
+        // Trả về danh sách câu hỏi đã được cập nhật, sắp xếp theo order
+        const updatedQuestions = await QuestionModel.findAll({
+            where: {
+                exam_id: exam_id,
+                teacher_id: userId
+            },
+            include: [
+                {
+                    model: QuestionAnswerModel,
+                    as: 'answers',
+                    attributes: ['id', 'text', 'is_correct', 'created_at', 'updated_at']
+                }
+            ],
+            order: [['order', 'ASC'], ['created_at', 'ASC']]
+        });
+
+        return res.status(200).send(updatedQuestions);
 
     } catch (error) {
         return res.status(500).send({ message: error.message });
@@ -172,7 +255,7 @@ export const getQuestions = async (req, res) => {
                     attributes: ['id', 'title']
                 }
             ],
-            order: [['created_at', 'DESC']]
+            order: exam_id ? [['order', 'ASC'], ['created_at', 'ASC']] : [['created_at', 'DESC']]
         });
 
         return res.status(200).send(questions);
@@ -216,6 +299,7 @@ export const updateQuestion = async (req, res) => {
         if (image_url !== undefined) updateData.image_url = image_url;
         if (type !== undefined) updateData.type = type;
         if (difficulty !== undefined) updateData.difficulty = difficulty;
+        if (req.body.order !== undefined) updateData.order = req.body.order;
 
         await question.update(updateData);
 

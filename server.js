@@ -19,7 +19,7 @@ const app = express()
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 
-sequelize.sync().then(()=>{
+sequelize.sync({ alter: true }).then(()=>{
     console.log('Database synced')
 }).catch(error => {console.error(error.message)})
 

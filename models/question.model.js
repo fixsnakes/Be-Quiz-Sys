@@ -40,6 +40,11 @@ const QuestionModel = sequelize.define('Questions', {
         type: DataTypes.STRING,
         allowNull: true,
         defaultValue: 'medium' // easy, medium, hard
+    },
+    order: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
     }
 }, {
     timestamps: true,
