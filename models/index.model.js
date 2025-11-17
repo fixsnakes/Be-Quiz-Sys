@@ -61,11 +61,13 @@ ClassesModel.hasMany(PostClassesModel,{
 })
 PostClassesModel.belongsTo(ClassesModel,{
   foreignKey: 'class_id'
+
 })
 
 //User (1-N) Post Comment
 UserModel.hasMany(PostCommentsModel,{
   foreignKey:'user_id'
+
 })
 PostCommentsModel.belongsTo(UserModel,{
   foreignKey:'user_id',
