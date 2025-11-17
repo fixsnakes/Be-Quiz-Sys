@@ -7,6 +7,7 @@ import QuestionAnswerModel from "./question_answer.model.js";
 import ExamFavoriteModel from "./exam_favorite.model.js";
 import ExamCommentModel from "./exam_comment.model.js";
 import ExamSessionModel from "./exam_session.model.js";
+import StudentAnswerModel from "./student_answer.model.js";
 
 // User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
@@ -171,4 +172,37 @@ ExamSessionModel.belongsTo(ExamModel, {
   as: 'exam'
 });
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel };
+// Exam_sessions 1-N Student_answers
+ExamSessionModel.hasMany(StudentAnswerModel, {
+  foreignKey: 'session_id',
+  as: 'studentAnswers'
+});
+
+StudentAnswerModel.belongsTo(ExamSessionModel, {
+  foreignKey: 'session_id',
+  as: 'session'
+});
+
+// Questions 1-N Student_answers
+QuestionModel.hasMany(StudentAnswerModel, {
+  foreignKey: 'exam_question_id',
+  as: 'studentAnswers'
+});
+
+StudentAnswerModel.belongsTo(QuestionModel, {
+  foreignKey: 'exam_question_id',
+  as: 'question'
+});
+
+// Question_answers 1-N Student_answers
+QuestionAnswerModel.hasMany(StudentAnswerModel, {
+  foreignKey: 'selected_answer_id',
+  as: 'studentSelections'
+});
+
+StudentAnswerModel.belongsTo(QuestionAnswerModel, {
+  foreignKey: 'selected_answer_id',
+  as: 'selectedAnswer'
+});
+
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel };
