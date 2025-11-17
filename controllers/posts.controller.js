@@ -45,6 +45,13 @@ export const GetPostsClass = async (req,res) => {
                     attributes: ['id','fullName']
                 }
             ],
+
+            include:[
+                {
+                    model: PostCommentsModel,
+                    'as': 'comments'
+                }
+            ],
             order: [['created_at', 'DESC']]
         })
 

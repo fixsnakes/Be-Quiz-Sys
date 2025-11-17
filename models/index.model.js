@@ -74,13 +74,13 @@ PostCommentsModel.belongsTo(UserModel,{
   as: 'author'
 })
 
-//Classes (1-N) Post Comment
-ClassesModel.hasMany(PostCommentsModel,{
-  foreignKey:'class_id',
+//Post Class (1-N) Post Comment
+PostClassesModel.hasMany(PostCommentsModel,{
+  foreignKey:'post_id',
   as: 'comments'
 })
-PostCommentsModel.belongsTo(ClassesModel,{
-  foreignKey:'class_id',
+PostCommentsModel.belongsTo(PostClassesModel,{
+  foreignKey:'post_id',
 })
 
 ExamModel.belongsTo(ClassesModel, {
