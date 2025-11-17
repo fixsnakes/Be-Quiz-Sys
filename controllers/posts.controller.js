@@ -116,6 +116,8 @@ export const GetCommentPost = async(req,res) => {
     }
 }
 
+//delete post
+
 export const DeletePost = async(req,res) => {
     try{
 
@@ -137,3 +139,57 @@ export const DeletePost = async(req,res) => {
         return res.status(500).send(error.message)
     }
 }
+
+//deletecomment
+
+export const DeleteComment = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+
+
+        const deletedComment = await PostCommentsModel.destroy({
+            where: {
+                id: commentId
+            }
+        });
+
+
+        if (!deletedComment) {
+            return res.status(404).send("Comment Not Found");
+        }
+
+
+        return res.status(200).send("Comment Deleted Successfully");
+
+    } catch (error) {
+        return res.status(500).send(error.message);
+    }
+};
+
+//Update Post
+
+export const UpdatePost = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const { title, post } = req.body;
+
+
+        const existingPost = await PostClassesModel.findByPk(postId);
+
+        if (!existingPost) {
+            return res.status(404).send("Post Not Found");
+        }
+
+        existingPost.title = title || existingPost.title;
+        existingPost.text = post || existingPost.text;
+
+
+        await existingPost.save();
+
+  
+        return res.status(200).send(existingPost);
+
+    } catch (error) {
+        return res.status(500).send(error.message);
+    }
+};

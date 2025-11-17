@@ -1,5 +1,5 @@
 import { verifyTeacher,verifyStudent, verifyToken } from "../middleware/authJWT.js";
-import { CreatePost,GetPostsClass,CreateCommentPost ,GetCommentPost, DeletePost} from "../controllers/posts.controller.js";
+import { CreatePost,GetPostsClass,CreateCommentPost ,GetCommentPost, DeletePost, DeleteComment,UpdatePost} from "../controllers/posts.controller.js";
 
 const postRoutes = (app) =>{
     
@@ -18,6 +18,13 @@ const postRoutes = (app) =>{
 
     // Delete post
     app.delete('/api/posts/:postId',verifyToken,verifyTeacher,DeletePost)
-}
+
+    //Update Post
+    app.post('/api/posts/update/:postId',verifyToken,verifyTeacher,UpdatePost)
+
+    // Delete Comment
+    app.delete('/api/posts/comment/:postId',verifyToken,verifyTeacher,UpdatePost)
+}   
+
 
 export default postRoutes;
