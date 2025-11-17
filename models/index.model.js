@@ -49,41 +49,36 @@ ClassesModel.hasMany(ExamModel, {
 //User(1-N) PostClasses
 UserModel.hasMany(PostClassesModel,{
   foreignKey: 'user_id',
-  as: 'posts'
 })
 PostClassesModel.belongsTo(UserModel,{
   foreignKey: 'user_id',
-  as: 'user'
+  as: 'author'
 })
 
 //Classes (1-N) Post
 ClassesModel.hasMany(PostClassesModel,{
   foreignKey:'class_id',
-  as: 'postsClasses'
 })
 PostClassesModel.belongsTo(ClassesModel,{
-  foreignKey: 'class_id',
-  'as' :'classes'
+  foreignKey: 'class_id'
 })
 
 //User (1-N) Post Comment
 UserModel.hasMany(PostCommentsModel,{
-  foreignKey:'user_id',
-  as: 'postComments'
+  foreignKey:'user_id'
 })
 PostCommentsModel.belongsTo(UserModel,{
   foreignKey:'user_id',
-  as: 'userPost'
+  as: 'author'
 })
 
 //Classes (1-N) Post Comment
 ClassesModel.hasMany(PostCommentsModel,{
   foreignKey:'class_id',
-  as: 'class_ports_comment'
+  as: 'comments'
 })
 PostCommentsModel.belongsTo(ClassesModel,{
   foreignKey:'class_id',
-  as: 'ports_comment_class'
 })
 
 ExamModel.belongsTo(ClassesModel, {
