@@ -8,7 +8,7 @@ const postRoutes = (app) =>{
     app.post('/api/posts/create',verifyToken,verifyTeacher,CreatePost)
 
     //Get All Post From A Class
-    app.get('/api/classes/:classId',verifyToken,GetPostsClass)
+    app.get('/api/classes/posts/:classId',verifyToken,GetPostsClass)
 
     // Create Comment A Post
     app.post('/api/posts/comment',verifyToken,CreateCommentPost)

@@ -12,7 +12,7 @@ import PostClassesModel from "./post_classes.model.js";
 import PostCommentsModel from "./post_comments.model.js";
 import ExamResultModel from "./exam_result.model.js";
 import NotificationModel from "./notification.model.js";
-
+import RecentLoginModel from "./recent_login.model.js";
 
 // User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
@@ -292,4 +292,15 @@ NotificationModel.belongsTo(UserModel, {
   as: 'recipient'
 });
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel };
+
+//User 1-N RecentLogin
+UserModel.hasMany(RecentLoginModel,{
+    foreignKey:  'user_id',
+    as: 'login_list'
+})
+RecentLoginModel.belongsTo(UserModel,{
+    foreignKey: 'user_id'
+})
+
+
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel, RecentLoginModel };
