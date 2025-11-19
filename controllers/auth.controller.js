@@ -1,8 +1,10 @@
 
 import authConfig from '../config/auth.config.js'
 import jwt from 'jsonwebtoken'
-
-
+import {RecentLoginModel} from '../models/index.model.js'
+import {UAParser} from 'ua-parser-js'
+import requestIp from 'request-ip'
+import geoip from 'geoip-lite'
 import {UserModel} from '../models/index.model.js'
 // Sign In / Sign Up module
 
@@ -58,6 +60,34 @@ export const signin = async (req,res) => {
 
         await user.save()
 
+        //Set recent_logins
+        const uaString = req.headers['user-agent'];
+   
+        const parser = new UAParser(uaString);
+        const result_ua = parser.getResult()
+
+        const osName = result_ua.os.name || "Unknown OS";
+        const osVersion = result_ua.os.version || "";
+        const browserName = result_ua.browser.name || "Unknown Browser";
+
+
+        let deviceDisplayName = `${osName} ${osVersion} - ${browserName}`;
+
+        const clientIp = "42.111.111.111"
+
+        const geo = geoip.lookup(clientIp);
+        const locationString = geo ? `${geo.city}, ${geo.country}` : "Unknown Location";
+
+        const createRecentLogin = await RecentLoginModel.create({
+            user_id: user.id,
+            device: deviceDisplayName,
+            ip_address: clientIp,
+            location: locationString,
+            login_time: new Date()
+        })
+
+
+        
         res.status(200).send({
             id: user.id,
             fullName: user.fullName,
@@ -71,4 +101,7 @@ export const signin = async (req,res) => {
         res.status(500).send({message: error.message})
     }
 }
+
+
+
 

@@ -1,5 +1,5 @@
-import UserModel from "../models/user.model.js";
-
+import {UserModel} from "../models/index.model.js";
+import {RecentLoginModel} from "../models/index.model.js";
 
 // Get information of a user
 export const GetProfileInfo = async (req,res) => {
@@ -11,7 +11,19 @@ export const GetProfileInfo = async (req,res) => {
             where: {
                 id: userId
             },
-            attributes: {exclude: ['password']}
+            attributes: {exclude: ['password']},
+            include: [
+                {
+                    model:RecentLoginModel,
+                    as: 'login_list',
+                    separate: true,
+                    limit: 5,       
+                    order: [
+                        ['login_time', 'DESC'] 
+                    ]
+                }
+               
+            ]
         })
 
         if(!userInfor){
@@ -38,6 +50,8 @@ export const UpdateProfileInfo = async (req,res) => {
         if (!fullName || !email){
             res.status(400).send("Missing information");
         }
+
+        //Check if user existed?
         
         const userInfor = await UserModel.findOne({where: {id: userId}, attributes: {exclude: ["password"]}});
 
