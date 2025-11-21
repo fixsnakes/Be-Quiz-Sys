@@ -46,10 +46,12 @@ export const getClasses = async (req, res) => {
                 },
                 limit: limit,
                 offset: offset,
-           
+                include:teacherInclude
       
             });
         } else {
+
+            console.log(userId)
           
             result = await ClassesModel.findAndCountAll({
                 limit: limit,
@@ -62,9 +64,11 @@ export const getClasses = async (req, res) => {
                             id: userId 
                         },
                         attributes: [] 
-                    }
+                    },
+
+                    teacherInclude,
                 ],
-                include:teacherInclude
+
                 
             });
         }
@@ -94,9 +98,7 @@ export const joinClassByCode = async (req, res) => {
         const code = req.query.code;
 
 
-        if (role === 'teacher') {
-            return res.status(400).send("You must be a student to join this class");
-        }
+       
 
         const joinClassInfo = await ClassesModel.findOne({
             where: {
@@ -105,7 +107,7 @@ export const joinClassByCode = async (req, res) => {
         });
 
         if (!joinClassInfo) {
-            return res.status(404).send("Class not found");
+            return res.status(404).send({status: false, message: "Class not found"});
         }
 
         const existingEnrollment = await ClassStudentModel.findOne({
@@ -117,9 +119,9 @@ export const joinClassByCode = async (req, res) => {
 
         if (existingEnrollment) {
             if (existingEnrollment.is_ban) {
-                return res.status(400).send({ message: "You have been removed from this class" });
+                return res.status(400).send({ status: false, message: "You have been removed from this class" });
             }
-            return res.status(400).send({ message: "You have already joined this class" });
+            return res.status(400).send({ status: false, message: "You have already joined this class" });
         }
 
     
@@ -135,14 +137,14 @@ export const joinClassByCode = async (req, res) => {
             await notifyStudentJoinedClass(userId, joinClassInfo.id);
         } catch (notifError) {
             console.error('Error sending notification:', notifError);
-            // Không fail request nếu thông báo lỗi
+            
         }
 
-        return res.status(200).send({ message: "Join class success", class: classStudent });
+        return res.status(200).send({ status: true, class: classStudent });
 
     } catch (error) {
 
-        return res.status(500).send({ message: error.message });
+        return res.status(500).send({ status: false,message: error.message });
     }
 };
 
