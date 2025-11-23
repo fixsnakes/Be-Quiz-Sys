@@ -248,6 +248,68 @@ export const BanStudent = async(req,res) => {
     }
 }
 
+// Update Class
+export const updateClass = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { className } = req.body;
+        const teacher_id = req.userId; // Get from middleware
+
+        // Validate required fields
+        if (!className || className.trim() === '') {
+            return res.status(400).send({ 
+                status: false,
+                message: 'className is required and cannot be empty' 
+            });
+        }
+
+        // Find the class
+        const classToUpdate = await ClassesModel.findOne({
+            where: {
+                id: id,
+                teacher_id: teacher_id // Ensure teacher owns this class
+            }
+        });
+
+        if (!classToUpdate) {
+            return res.status(404).send({ 
+                status: false,
+                message: 'Class not found or you do not have permission to update this class' 
+            });
+        }
+
+        // Update class name
+        await classToUpdate.update({
+            className: className.trim()
+        });
+
+        // Return updated class
+        const updatedClass = await ClassesModel.findOne({
+            where: { id: id },
+            include: [
+                {
+                    model: UserModel,
+                    as: 'teacher',
+                    attributes: ['id', 'fullName']
+                }
+            ]
+        });
+
+        return res.status(200).send({
+            status: true,
+            message: 'Class updated successfully',
+            data: updatedClass
+        });
+
+    } catch (error) {
+        console.error('Error updating class:', error);
+        return res.status(500).send({ 
+            status: false,
+            message: error.message || 'Internal server error' 
+        });
+    }
+};
+
 // Delete Class
 export const DeleteClass = async(req,res) => {
     try{
