@@ -491,3 +491,96 @@ export const updateFeedback = async (req, res) => {
     }
 };
 
+// Export exam results to CSV
+export const exportExamResults = async (req, res) => {
+    try {
+        const { exam_id } = req.params;
+        const userId = req.userId;
+        const role = req.role;
+        const { format = 'csv' } = req.query;
+
+        // Chỉ teacher mới có quyền export kết quả
+        if (role !== 'teacher') {
+            return res.status(403).send({ 
+                message: 'Only teacher can export exam results' 
+            });
+        }
+
+        // Kiểm tra exam có tồn tại và thuộc về teacher không
+        const exam = await ExamModel.findOne({
+            where: {
+                id: exam_id,
+                created_by: userId
+            }
+        });
+
+        if (!exam) {
+            return res.status(404).send({ 
+                message: 'Exam not found or you do not have permission' 
+            });
+        }
+
+        // Lấy tất cả kết quả của exam
+        const results = await ExamResultModel.findAll({
+            where: { exam_id: exam_id },
+            include: [
+                {
+                    model: ExamSessionModel,
+                    as: 'session',
+                    attributes: ['id', 'code', 'start_time', 'end_time', 'submitted_at', 'status']
+                },
+                {
+                    model: UserModel,
+                    as: 'student',
+                    attributes: ['id', 'fullName', 'email']
+                }
+            ],
+            order: [['submitted_at', 'DESC']]
+        });
+
+        if (format === 'csv') {
+            // Generate CSV
+            const csvHeader = 'STT,Họ và tên,Email,Điểm số,Tổng điểm,Tỷ lệ %,Đúng,Sai,Thời gian nộp,Feedback\n';
+            
+            const csvRows = results.map((result, index) => {
+                const score = typeof result.total_score === 'number' ? result.total_score : parseFloat(result.total_score) || 0;
+                const totalScore = exam.total_score || 100;
+                const percentage = totalScore > 0 ? ((score / totalScore) * 100).toFixed(1) : '0';
+                
+                const fullName = (result.student?.fullName || 'Không tên').replace(/"/g, '""');
+                const email = (result.student?.email || '').replace(/"/g, '""');
+                const feedback = (result.feedback || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                const submittedAt = result.submitted_at 
+                    ? new Date(result.submitted_at).toLocaleString('vi-VN')
+                    : '';
+                
+                return `${index + 1},"${fullName}","${email}",${score},${totalScore},${percentage},${result.correct_count || 0},${result.wrong_count || 0},"${submittedAt}","${feedback}"`;
+            }).join('\n');
+
+            const csvContent = csvHeader + csvRows;
+
+            // Set headers for CSV download
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="ket-qua-thi-${exam.title.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.csv"`);
+            res.setHeader('Content-Length', Buffer.byteLength(csvContent, 'utf8'));
+
+            return res.send('\ufeff' + csvContent); // BOM for Excel UTF-8 support
+        } else {
+            // For other formats, return JSON
+            return res.status(200).json({
+                exam: {
+                    id: exam.id,
+                    title: exam.title,
+                    total_score: exam.total_score
+                },
+                results: results,
+                total_submissions: results.length
+            });
+        }
+
+    } catch (error) {
+        console.error('Error exporting exam results:', error);
+        return res.status(500).send({ message: error.message });
+    }
+};
+

@@ -4,7 +4,8 @@ import {
     getStudentResults,
     getExamResults,
     updateFeedback,
-    getStudentComparison
+    getStudentComparison,
+    exportExamResults
 } from "../controllers/exam_result.controller.js";
 import { verifyToken, verifyStudent, verifyTeacher } from "../middleware/authJWT.js";
 
@@ -20,6 +21,9 @@ const examResultRoutes = (app) => {
     
     // Lấy tất cả kết quả của một exam (cho teacher) - chỉ teacher
     app.get('/api/exams/:exam_id/results', verifyToken, verifyTeacher, getExamResults);
+
+    // Export kết quả thi (CSV/JSON) - chỉ teacher
+    app.get('/api/exams/:exam_id/results/export', verifyToken, verifyTeacher, exportExamResults);
 
     // So sánh kết quả của student với lớp và tất cả mọi người cùng làm exam - chỉ student
     app.get('/api/exams/:exam_id/my-comparison', verifyToken, verifyStudent, getStudentComparison);
