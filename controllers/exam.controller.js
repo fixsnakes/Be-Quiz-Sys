@@ -28,9 +28,9 @@ export const createExam = async (req, res) => {
         const created_by = req.userId; // Get from middleware
 
         // Validate required fields
-        if (!title || !minutes || !start_time || !end_time) {
+        if (!title || !minutes) {
             return res.status(400).send({ 
-                message: 'Missing required fields: title, minutes, start_time, end_time' 
+                message: 'Missing required fields: title, minutes' 
             });
         }
 
@@ -50,13 +50,23 @@ export const createExam = async (req, res) => {
             }
         }
 
-        // Validate dates
-        const startDate = new Date(start_time);
-        const endDate = new Date(end_time);
+        // Validate dates nếu có (cho phép null khi không giới hạn thời gian)
+        let startDate = null;
+        let endDate = null;
+        
+        if (start_time && end_time) {
+            startDate = new Date(start_time);
+            endDate = new Date(end_time);
 
-        if (startDate >= endDate) {
+            if (startDate >= endDate) {
+                return res.status(400).send({ 
+                    message: 'End time must be after start time' 
+                });
+            }
+        } else if (start_time || end_time) {
+            // Nếu chỉ có một trong hai, không hợp lệ
             return res.status(400).send({ 
-                message: 'End time must be after start time' 
+                message: 'Both start_time and end_time must be provided together, or both can be null for unlimited time' 
             });
         }
 
@@ -81,8 +91,8 @@ export const createExam = async (req, res) => {
             des: des || null,
             total_score: total_score || 100,
             minutes,
-            start_time: startDate,
-            end_time: endDate,
+            start_time: startDate, // Có thể null
+            end_time: endDate, // Có thể null
             is_paid: is_paid || false,
             fee: is_paid ? fee : 0,
             created_by,
@@ -218,24 +228,59 @@ export const updateExam = async (req, res) => {
         }
 
         // Validate dates if provided
-        if (start_time || end_time) {
-            const startDate = start_time ? new Date(start_time) : new Date(exam.start_time);
-            const endDate = end_time ? new Date(end_time) : new Date(exam.end_time);
+        if (start_time !== undefined || end_time !== undefined) {
+            // Nếu cả hai đều null, cho phép (không giới hạn thời gian)
+            if (start_time === null && end_time === null) {
+                // OK - không giới hạn thời gian
+            } else if (start_time && end_time) {
+                // Cả hai đều có giá trị, kiểm tra hợp lệ
+                const startDate = new Date(start_time);
+                const endDate = new Date(end_time);
 
-            if (startDate >= endDate) {
+                if (startDate >= endDate) {
+                    return res.status(400).send({ 
+                        message: 'End time must be after start time' 
+                    });
+                }
+            } else if (start_time === null || end_time === null) {
+                // Chỉ một trong hai null, không hợp lệ
                 return res.status(400).send({ 
-                    message: 'End time must be after start time' 
+                    message: 'Both start_time and end_time must be provided together, or both can be null for unlimited time' 
                 });
+            } else {
+                // Một trong hai được cung cấp, lấy giá trị từ exam hiện tại cho giá trị còn lại
+                const startDate = start_time ? new Date(start_time) : (exam.start_time ? new Date(exam.start_time) : null);
+                const endDate = end_time ? new Date(end_time) : (exam.end_time ? new Date(exam.end_time) : null);
+                
+                if (startDate && endDate && startDate >= endDate) {
+                    return res.status(400).send({ 
+                        message: 'End time must be after start time' 
+                    });
+                }
             }
         }
 
         // Validate fee if is_paid is true
-        const finalIsPaid = is_paid !== undefined ? is_paid : exam.is_paid;
-        if (finalIsPaid && (!fee || fee <= 0)) {
-            return res.status(400).send({ 
-                message: 'Fee is required when is_paid is true' 
-            });
+        // Chỉ validate fee khi:
+        // 1. is_paid được gửi trong request và là true, HOẶC
+        // 2. is_paid không được gửi nhưng exam hiện tại có is_paid = true VÀ fee được gửi trong request
+        // Nếu chỉ update các field khác (như question_creation_method) mà không gửi fee, thì không validate fee
+        if (is_paid !== undefined && is_paid === true) {
+            // Nếu is_paid được set thành true trong request, fee phải được gửi và hợp lệ
+            if (fee === undefined || fee === null || fee <= 0) {
+                return res.status(400).send({ 
+                    message: 'Fee is required when is_paid is true' 
+                });
+            }
+        } else if (is_paid === undefined && exam.is_paid === true && fee !== undefined) {
+            // Nếu exam hiện tại có is_paid = true và fee được gửi trong request, validate fee
+            if (fee === null || fee <= 0) {
+                return res.status(400).send({ 
+                    message: 'Fee must be greater than 0 when is_paid is true' 
+                });
+            }
         }
+        // Nếu không gửi fee và không set is_paid = true, không validate (giữ nguyên fee hiện tại)
 
         // Validate class_id nếu được cung cấp (cho phép null để bỏ gắn exam)
         if (class_id !== undefined) {
@@ -300,10 +345,14 @@ export const updateExam = async (req, res) => {
         if (des !== undefined) updateData.des = des;
         if (total_score !== undefined) updateData.total_score = total_score;
         if (minutes !== undefined) updateData.minutes = minutes;
-        if (start_time !== undefined) updateData.start_time = new Date(start_time);
-        if (end_time !== undefined) updateData.end_time = new Date(end_time);
+        if (start_time !== undefined) updateData.start_time = start_time === null ? null : new Date(start_time);
+        if (end_time !== undefined) updateData.end_time = end_time === null ? null : new Date(end_time);
         if (is_paid !== undefined) updateData.is_paid = is_paid;
-        if (fee !== undefined) updateData.fee = finalIsPaid ? fee : 0;
+        if (fee !== undefined) {
+            // Nếu is_paid được set, dùng giá trị đó, nếu không dùng giá trị hiện tại của exam
+            const finalIsPaid = is_paid !== undefined ? is_paid : exam.is_paid;
+            updateData.fee = finalIsPaid ? fee : 0;
+        }
         if (is_public !== undefined) updateData.is_public = is_public;
         if (question_creation_method !== undefined && normalizedQuestionMethodValue !== undefined) {
             updateData.question_creation_method = normalizedQuestionMethodValue;
@@ -549,15 +598,21 @@ export const getAvailableExamsForStudent = async (req, res) => {
         const now = new Date();
         const examsWithStatus = exams.map(exam => {
             const examData = exam.toJSON();
-            const startTime = new Date(exam.start_time);
-            const endTime = new Date(exam.end_time);
-
-            if (now < startTime) {
-                examData.status = 'upcoming';
-            } else if (now >= startTime && now <= endTime) {
-                examData.status = 'ongoing';
+            
+            // Xử lý trường hợp không giới hạn thời gian
+            if (!exam.start_time || !exam.end_time) {
+                examData.status = 'unlimited'; // Không giới hạn thời gian
             } else {
-                examData.status = 'ended';
+                const startTime = new Date(exam.start_time);
+                const endTime = new Date(exam.end_time);
+
+                if (now < startTime) {
+                    examData.status = 'upcoming';
+                } else if (now >= startTime && now <= endTime) {
+                    examData.status = 'ongoing';
+                } else {
+                    examData.status = 'ended';
+                }
             }
 
             return examData;
@@ -616,15 +671,21 @@ export const getExamDetailForStudent = async (req, res) => {
         // Thêm thông tin về trạng thái exam
         const now = new Date();
         const examData = exam.toJSON();
-        const startTime = new Date(exam.start_time);
-        const endTime = new Date(exam.end_time);
-
-        if (now < startTime) {
-            examData.status = 'upcoming';
-        } else if (now >= startTime && now <= endTime) {
-            examData.status = 'ongoing';
+        
+        // Xử lý trường hợp không giới hạn thời gian
+        if (!exam.start_time || !exam.end_time) {
+            examData.status = 'unlimited'; // Không giới hạn thời gian
         } else {
-            examData.status = 'ended';
+            const startTime = new Date(exam.start_time);
+            const endTime = new Date(exam.end_time);
+
+            if (now < startTime) {
+                examData.status = 'upcoming';
+            } else if (now >= startTime && now <= endTime) {
+                examData.status = 'ongoing';
+            } else {
+                examData.status = 'ended';
+            }
         }
 
         return res.status(200).send(examData);

@@ -36,8 +36,8 @@ const ExamPurchaseModel = sequelize.define('ExamPurchase', {
     timestamps: false,
     tableName: 'ExamPurchase',
     indexes: [
+        // Removed unique constraint to allow multiple purchases (pay-per-attempt)
         {
-            unique: true,
             fields: ['user_id', 'exam_id']
         }
     ]

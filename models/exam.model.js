@@ -34,11 +34,11 @@ const ExamModel = sequelize.define('Exams', {
     },
     start_time: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: true // Cho phép null khi không giới hạn thời gian
     },
     end_time: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: true // Cho phép null khi không giới hạn thời gian
     },
     is_paid: {
         type: DataTypes.BOOLEAN,

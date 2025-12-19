@@ -34,20 +34,9 @@ export const purchaseExam = async (req, res) => {
             });
         }
 
-        // Kiểm tra người dùng đã mua đề thi này chưa
-        const existingPurchase = await ExamPurchaseModel.findOne({
-            where: {
-                user_id: userId,
-                exam_id: exam_id
-            }
-        });
-
-        if (existingPurchase) {
-            return res.status(400).json({
-                success: false,
-                message: "Bạn đã mua đề thi này rồi"
-            });
-        }
+        // NOTE: Logic đã thay đổi - hiện tại thanh toán được thực hiện khi bắt đầu làm bài (startExam)
+        // Endpoint này vẫn được giữ lại để tương thích ngược, nhưng không còn kiểm tra duplicate purchase
+        // vì giờ đây mỗi lần làm bài sẽ trừ tiền (pay-per-attempt)
 
         // Kiểm tra số dư của người dùng
         const user = await UserModel.findByPk(userId);
