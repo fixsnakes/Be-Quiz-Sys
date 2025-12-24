@@ -19,6 +19,7 @@ import StudentExamStatusModel from "./student_exam_status.model.js";
 import DepositHistoryModel from "./deposit_history.model.js";
 import WithdrawHistoryModel from "./withdrawn_history.model.js";
 import TransactionHistoryModel from "./transactions_history.model.js";
+import ExamRatingModel from "./exam_rating.model.js";
 
 // User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
@@ -440,4 +441,37 @@ TransactionHistoryModel.belongsTo(UserModel, {
 });
 
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel, RecentLoginModel, ExamPurchaseModel, ExamCheatingLogModel, StudentExamStatusModel, DepositHistoryModel, WithdrawHistoryModel, TransactionHistoryModel };
+// Exam 1-N Exam_ratings
+ExamModel.hasMany(ExamRatingModel, {
+  foreignKey: 'exam_id',
+  as: 'ratings'
+});
+
+ExamRatingModel.belongsTo(ExamModel, {
+  foreignKey: 'exam_id',
+  as: 'exam'
+});
+
+// User 1-N Exam_ratings
+UserModel.hasMany(ExamRatingModel, {
+  foreignKey: 'user_id',
+  as: 'examRatings'
+});
+
+ExamRatingModel.belongsTo(UserModel, {
+  foreignKey: 'user_id',
+  as: 'user'
+});
+
+// Exam_results 1-1 Exam_ratings (optional)
+ExamResultModel.hasOne(ExamRatingModel, {
+  foreignKey: 'result_id',
+  as: 'rating'
+});
+
+ExamRatingModel.belongsTo(ExamResultModel, {
+  foreignKey: 'result_id',
+  as: 'result'
+});
+
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel, RecentLoginModel, ExamPurchaseModel, ExamCheatingLogModel, StudentExamStatusModel, DepositHistoryModel, WithdrawHistoryModel, TransactionHistoryModel, ExamRatingModel };

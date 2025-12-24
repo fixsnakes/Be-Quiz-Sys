@@ -197,7 +197,11 @@ export const GetStudentFromClass = async (req,res) => {
             include: [
                 {
                     model: UserModel,
-                    as: "students"
+                    as: "students",
+                    attributes: ['id', 'fullName', 'email', 'balance', 'role', 'last_login', 'created_at'], // Không trả về password
+                    through: {
+                        attributes: ['joined_at', 'is_ban'] // Lấy joined_at và is_ban từ Class_student
+                    }
                 }
             ]
 

@@ -28,9 +28,11 @@ export const startExam = async (req, res) => {
             });
         }
 
+        // Định nghĩa now ở đây để dùng cho toàn bộ hàm
+        const now = new Date();
+
         // Kiểm tra thời gian bài thi có hợp lệ không (chỉ khi có giới hạn thời gian)
         if (exam.start_time && exam.end_time) {
-            const now = new Date();
             const examStartTime = new Date(exam.start_time);
             const examEndTime = new Date(exam.end_time);
 
@@ -162,6 +164,43 @@ export const startExam = async (req, res) => {
                 return res.status(500).send({ 
                     message: 'Error processing payment for exam',
                     error: paymentError.message
+                });
+            }
+        }
+
+        // Kiểm tra lại existingSession một lần nữa để tránh race condition
+        // (nếu có 2 request cùng lúc, cả 2 đều có thể không thấy session ở lần kiểm tra đầu)
+        const doubleCheckSession = await ExamSessionModel.findOne({
+            where: {
+                exam_id: exam_id,
+                student_id: student_id,
+                status: 'in_progress'
+            }
+        });
+
+        if (doubleCheckSession) {
+            // Kiểm tra xem session còn hợp lệ không (chưa hết thời gian)
+            const sessionEndTime = new Date(doubleCheckSession.end_time);
+            if (now < sessionEndTime) {
+                // Nếu có session đang active, trả về session đó (không trừ tiền lại)
+                const sessionWithExam = await ExamSessionModel.findOne({
+                    where: { id: doubleCheckSession.id },
+                    include: [
+                        {
+                            model: ExamModel,
+                            as: 'exam',
+                            attributes: ['id', 'title', 'des', 'total_score', 'minutes', 'start_time', 'end_time']
+                        }
+                    ]
+                });
+                return res.status(200).send({
+                    message: 'Exam session already exists',
+                    session: sessionWithExam
+                });
+            } else {
+                // Session đã hết hạn, cập nhật status
+                await doubleCheckSession.update({ 
+                    status: 'expired' 
                 });
             }
         }

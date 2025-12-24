@@ -14,6 +14,7 @@ import questionRoutes from "./routes/question.routes.js";
 import questionAnswerRoutes from "./routes/question_answer.routes.js";
 import examFavoriteRoutes from "./routes/exam_favorite.routes.js";
 import examCommentRoutes from "./routes/exam_comment.routes.js";
+import examRatingRoutes from "./routes/exam_rating.routes.js";
 import examSessionRoutes from "./routes/exam_session.routes.js";
 import studentAnswerRoutes from "./routes/student_answer.routes.js";
 import examResultRoutes from "./routes/exam_result.routes.js";
@@ -26,8 +27,14 @@ import adminRoutes from "./routes/admin/index.admin.routes.js";
 import teacherDashboardRoutes from "./routes/teacher_dashboard.routes.js";
 import walletRoutes from "./routes/wallet.routes.js";
 import { startDepositExpiryScheduler } from "./services/wallet.service.js";
+import uploadRoutes from "./routes/upload.routes.js";
 
 import postRoutes from "./routes/posts.routes.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express()
 
 app.use(cors({
@@ -37,6 +44,9 @@ app.use(cors({
 }));
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// Serve static files from public directory
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 sequelize.sync({ alter: true })
     .then(() => console.log("Database synced (altered)"))
@@ -53,6 +63,7 @@ questionRoutes(app)
 questionAnswerRoutes(app)
 examFavoriteRoutes(app)
 examCommentRoutes(app)
+examRatingRoutes(app)
 examSessionRoutes(app)
 studentAnswerRoutes(app)
 postRoutes(app)
@@ -63,6 +74,7 @@ examMonitorRoutes(app)
 adminRoutes(app)
 teacherDashboardRoutes(app)
 walletRoutes(app)
+uploadRoutes(app)
 
 // Error handling middleware - phải đặt sau tất cả routes
 app.use((err, req, res, next) => {

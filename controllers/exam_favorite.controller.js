@@ -1,4 +1,4 @@
-import { ExamFavoriteModel, ExamModel, UserModel, ClassesModel } from "../models/index.model.js";
+import { ExamFavoriteModel, ExamModel, UserModel, ClassesModel, QuestionModel } from "../models/index.model.js";
 
 // Add exam to favorites
 export const addFavorite = async (req, res) => {
@@ -106,7 +106,7 @@ export const getFavorites = async (req, res) => {
                 {
                     model: ExamModel,
                     as: 'exam',
-                    attributes: ['id', 'title', 'des', 'total_score', 'minutes', 'start_time', 'end_time', 'is_paid', 'fee', 'is_public', 'created_at'],
+                    attributes: ['id', 'title', 'des', 'total_score', 'minutes', 'start_time', 'end_time', 'is_paid', 'fee', 'is_public', 'created_at', 'count'],
                     include: [
                         {
                             model: ClassesModel,
@@ -119,7 +119,21 @@ export const getFavorites = async (req, res) => {
             order: [['created_at', 'DESC']]
         });
 
-        return res.status(200).send(favorites);
+        // Thêm số câu hỏi cho mỗi exam
+        const favoritesWithQuestionCount = await Promise.all(
+            favorites.map(async (favorite) => {
+                const favoriteData = favorite.toJSON();
+                if (favoriteData.exam) {
+                    const questionCount = await QuestionModel.count({
+                        where: { exam_id: favoriteData.exam.id }
+                    });
+                    favoriteData.exam.question_count = questionCount;
+                }
+                return favoriteData;
+            })
+        );
+
+        return res.status(200).send(favoritesWithQuestionCount);
 
     } catch (error) {
         return res.status(500).send({ message: error.message });
