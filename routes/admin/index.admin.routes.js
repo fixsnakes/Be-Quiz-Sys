@@ -3,6 +3,9 @@ import { verifyToken, verifyAdmin, verifySuperAdmin } from "../../middleware/aut
 // Dashboard
 import { getDashboard } from "../../controllers/admin/dashboard.admin.controller.js";
 
+// Stats
+import { getStats30Days } from "../../controllers/admin/stats.admin.controller.js";
+
 // User Management
 import {
     getAllUsers,
@@ -76,6 +79,12 @@ export default function(app) {
         "/api/admin/dashboard",
         [verifyToken, verifyAdmin],
         getDashboard
+    );
+    
+    app.get(
+        "/api/admin/dashboard/stats-30-days",
+        [verifyToken, verifyAdmin],
+        getStats30Days
     );
 
     // ==================== USER MANAGEMENT ====================
