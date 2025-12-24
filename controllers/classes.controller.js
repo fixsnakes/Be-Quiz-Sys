@@ -49,6 +49,31 @@ export const getClasses = async (req, res) => {
                 include:teacherInclude
       
             });
+
+            // Đếm số học sinh cho mỗi lớp
+            const classesWithStudentCount = await Promise.all(
+                result.rows.map(async (classItem) => {
+                    const studentCount = await ClassStudentModel.count({
+                        where: {
+                            class_id: classItem.id,
+                            is_ban: false
+                        }
+                    });
+                    const classData = classItem.toJSON();
+                    classData.studentCount = studentCount;
+                    return classData;
+                })
+            );
+
+            return res.status(200).send({ 
+                status: true, 
+                data: classesWithStudentCount, 
+                total: result.count,
+                pagination: {
+                    limit,
+                    offset
+                }
+            });
         } else {
 
             console.log(userId)

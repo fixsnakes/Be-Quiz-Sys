@@ -1,7 +1,8 @@
-import { ExamSessionModel, ExamModel, UserModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel } from "../models/index.model.js";
+import { ExamSessionModel, ExamModel, UserModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel, ExamPurchaseModel } from "../models/index.model.js";
 import { genCode } from "../utils/generateClassCode.js";
 import { finalizeSessionResult } from "../services/exam_result.service.js";
 import { updateStatusOnStart } from "../services/student_exam_status.service.js";
+import sequelize from "../config/db.config.js";
 
 // Bắt đầu bài thi (Tạo exam session)
 export const startExam = async (req, res) => {
@@ -27,22 +28,25 @@ export const startExam = async (req, res) => {
             });
         }
 
-        // Kiểm tra thời gian bài thi có hợp lệ không
-        const now = new Date();
-        const examStartTime = new Date(exam.start_time);
-        const examEndTime = new Date(exam.end_time);
+        // Kiểm tra thời gian bài thi có hợp lệ không (chỉ khi có giới hạn thời gian)
+        if (exam.start_time && exam.end_time) {
+            const now = new Date();
+            const examStartTime = new Date(exam.start_time);
+            const examEndTime = new Date(exam.end_time);
 
-        if (now < examStartTime) {
-            return res.status(400).send({ 
-                message: 'Exam has not started yet' 
-            });
-        }
+            if (now < examStartTime) {
+                return res.status(400).send({ 
+                    message: 'Exam has not started yet' 
+                });
+            }
 
-        if (now > examEndTime) {
-            return res.status(400).send({ 
-                message: 'Exam has ended' 
-            });
+            if (now > examEndTime) {
+                return res.status(400).send({ 
+                    message: 'Exam has ended' 
+                });
+            }
         }
+        // Nếu không có start_time và end_time (null), không kiểm tra thời gian (không giới hạn)
 
         // Kiểm tra trạng thái public/private
         if (!exam.is_public) {
@@ -72,23 +76,6 @@ export const startExam = async (req, res) => {
             });
         }
 
-        // Kiểm tra nếu exam là trả phí (is_paid = true)
-        if (exam.is_paid) {
-            // TODO: Kiểm tra balance của student khi đã thêm balance vào User model
-            // Hiện tại user model chưa có balance, có thể bỏ qua check này hoặc thêm sau
-            const user = await UserModel.findOne({ where: { id: student_id } });
-            
-            // Nếu balance field tồn tại, check balance
-            if (user && user.balance !== undefined) {
-                if (!user.balance || user.balance < exam.fee) {
-                    return res.status(400).send({ 
-                        message: 'Insufficient balance to take this exam' 
-                    });
-                }
-            }
-            // Nếu chưa có balance field, có thể bỏ qua check hoặc thêm logic khác
-        }
-
         // Kiểm tra xem student đã bắt đầu exam session chưa
         const existingSession = await ExamSessionModel.findOne({
             where: {
@@ -102,14 +89,79 @@ export const startExam = async (req, res) => {
             // Kiểm tra xem session còn hợp lệ không (chưa hết thời gian)
             const sessionEndTime = new Date(existingSession.end_time);
             if (now < sessionEndTime) {
+                // Nếu có session đang active, trả về session đó (không trừ tiền lại)
+                const sessionWithExam = await ExamSessionModel.findOne({
+                    where: { id: existingSession.id },
+                    include: [
+                        {
+                            model: ExamModel,
+                            as: 'exam',
+                            attributes: ['id', 'title', 'des', 'total_score', 'minutes', 'start_time', 'end_time']
+                        }
+                    ]
+                });
                 return res.status(200).send({
                     message: 'Exam session already exists',
-                    session: existingSession
+                    session: sessionWithExam
                 });
             } else {
                 // Session đã hết hạn, cập nhật status
                 await existingSession.update({ 
                     status: 'expired' 
+                });
+            }
+        }
+
+        // Nếu exam là trả phí (is_paid = true), kiểm tra và trừ tiền mỗi lần bắt đầu làm bài
+        let transaction = null;
+        if (exam.is_paid) {
+            const user = await UserModel.findOne({ where: { id: student_id } });
+            
+            if (!user) {
+                return res.status(404).send({ 
+                    message: 'User not found' 
+                });
+            }
+
+            // Kiểm tra balance
+            const userBalance = parseFloat(user.balance || 0);
+            const examFee = parseFloat(exam.fee || 0);
+
+            if (userBalance < examFee) {
+                return res.status(400).send({ 
+                    message: 'Insufficient balance to take this exam',
+                    currentBalance: userBalance,
+                    requiredAmount: examFee
+                });
+            }
+
+            // Bắt đầu transaction để đảm bảo tính nhất quán
+            transaction = await sequelize.transaction();
+
+            try {
+                // Trừ tiền từ balance
+                const newBalance = userBalance - examFee;
+                await user.update({
+                    balance: newBalance
+                }, { transaction });
+
+                // Tạo bản ghi purchase để tracking (pay-per-attempt)
+                await ExamPurchaseModel.create({
+                    user_id: student_id,
+                    exam_id: exam_id,
+                    purchase_price: examFee
+                }, { transaction });
+
+                await transaction.commit();
+                transaction = null;
+            } catch (paymentError) {
+                if (transaction && !transaction.finished) {
+                    await transaction.rollback();
+                }
+                console.error("Error processing payment:", paymentError);
+                return res.status(500).send({ 
+                    message: 'Error processing payment for exam',
+                    error: paymentError.message
                 });
             }
         }
