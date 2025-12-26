@@ -9,19 +9,15 @@ const ExamPurchaseModel = sequelize.define('ExamPurchase', {
     },
     user_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'User',
-            key: 'id'
-        }
+        allowNull: false
+        // Foreign key được tạo tự động từ belongsTo relationships trong index.model.js
+        // Không cần references ở đây để tránh conflict
     },
     exam_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'Exams',
-            key: 'id'
-        }
+        allowNull: false
+        // Foreign key được tạo tự động từ belongsTo relationships trong index.model.js
+        // Không cần references ở đây để tránh conflict
     },
     purchase_price: {
         type: DataTypes.DECIMAL(10, 2),

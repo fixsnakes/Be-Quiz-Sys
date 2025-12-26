@@ -5,6 +5,7 @@ import cors from 'cors';
 
 import sequelize from "./config/db.config.js";
 import "./models/index.model.js";
+import { fixExamPurchaseForeignKeys } from "./utils/fixForeignKeys.js";
 
 import authRoutes from "./routes/auth.routes.js";
 import authClasses from "./routes/classes.routes.js";
@@ -49,7 +50,11 @@ app.use(express.urlencoded({ extended: true }))
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 sequelize.sync({ alter: true })
-    .then(() => console.log("Database synced (altered)"))
+    .then(async () => {
+        console.log("Database synced (altered)");
+        // Tự động fix foreign key constraints với tên mong muốn
+        await fixExamPurchaseForeignKeys();
+    })
     .catch(err => console.error(err));
 
 
