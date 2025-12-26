@@ -1,4 +1,4 @@
-import { ExamSessionModel, ExamModel, UserModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel, ExamPurchaseModel } from "../models/index.model.js";
+import { ExamSessionModel, ExamModel, UserModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel, ExamPurchaseModel, TransactionHistoryModel } from "../models/index.model.js";
 import { genCode } from "../utils/generateClassCode.js";
 import { finalizeSessionResult } from "../services/exam_result.service.js";
 import { updateStatusOnStart } from "../services/student_exam_status.service.js";
@@ -143,7 +143,7 @@ export const startExam = async (req, res) => {
             transaction = await sequelize.transaction();
 
             try {
-                // Trừ tiền từ balance
+                // Trừ tiền từ balance của student
                 const newBalance = userBalance - examFee;
                 console.log(newBalance)
                 await user.update({
@@ -151,11 +151,53 @@ export const startExam = async (req, res) => {
                 }, { transaction });
 
                 // Tạo bản ghi purchase để tracking (pay-per-attempt)
-                await ExamPurchaseModel.create({
+                const purchase = await ExamPurchaseModel.create({
                     user_id: student_id,
                     exam_id: exam_id,
                     purchase_price: examFee
                 }, { transaction });
+
+                // Tạo transaction history cho student (purchase)
+                await TransactionHistoryModel.create({
+                    user_id: student_id,
+                    transactionType: 'purchase',
+                    referenceId: purchase.id,
+                    amount: examFee,
+                    beforeBalance: userBalance,
+                    afterBalance: newBalance,
+                    transactionStatus: 'success',
+                    description: `Mua đề thi: ${exam.title || `Exam ID: ${exam_id}`}`
+                }, { transaction });
+
+                // Cộng tiền vào tài khoản teacher
+                if (exam.created_by) {
+                    const teacher = await UserModel.findByPk(exam.created_by, { 
+                        transaction,
+                        lock: transaction.LOCK.UPDATE 
+                    });
+                    
+                    if (teacher) {
+                        const teacherBalance = parseFloat(teacher.balance || 0);
+                        const teacherNewBalance = teacherBalance + examFee;
+                        
+                        await teacher.update({
+                            balance: teacherNewBalance
+                        }, { transaction });
+
+                        // Tạo transaction history cho teacher (revenue từ việc bán đề thi)
+                        await TransactionHistoryModel.create({
+                            user_id: exam.created_by,
+                            transactionType: 'adjustment',
+                            transferType: 'in', // Đánh dấu là tiền vào (doanh thu)
+                            referenceId: purchase.id,
+                            amount: examFee,
+                            beforeBalance: teacherBalance,
+                            afterBalance: teacherNewBalance,
+                            transactionStatus: 'success',
+                            description: `Doanh thu từ đề thi: ${exam.title || `Exam ID: ${exam_id}`} - Student ID: ${student_id}`
+                        }, { transaction });
+                    }
+                }
 
                 await transaction.commit();
                 transaction = null;
@@ -422,18 +464,45 @@ export const getSessionQuestionsForStudent = async (req, res) => {
             order: [['order', 'ASC']]
         });
 
-        const sanitizedQuestions = questions.map(question => ({
-            id: question.id,
-            question_text: question.question_text,
-            type: question.type,
-            difficulty: question.difficulty,
-            order: question.order,
-            image_url: question.image_url,
-            answers: question.answers.map(answer => ({
-                id: answer.id,
-                text: answer.text
-            }))
-        }));
+        // Hàm shuffle với seed để đảo ngẫu nhiên nhưng nhất quán
+        const seededShuffle = (array, seed) => {
+            const shuffled = [...array];
+            // Sử dụng seed để tạo random generator nhất quán
+            let random = seed;
+            const next = () => {
+                random = (random * 9301 + 49297) % 233280;
+                return random / 233280;
+            };
+            
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(next() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        };
+
+        // Đảo thứ tự câu hỏi dựa trên session_id
+        const shuffledQuestions = seededShuffle(questions, session_id);
+
+        // Đảo thứ tự đáp án trong mỗi câu hỏi
+        const sanitizedQuestions = shuffledQuestions.map((question, questionIndex) => {
+            // Đảo đáp án với seed là session_id + question_id để mỗi câu hỏi có thứ tự đáp án khác nhau
+            const answerSeed = session_id * 1000 + question.id;
+            const shuffledAnswers = seededShuffle(question.answers, answerSeed);
+            
+            return {
+                id: question.id,
+                question_text: question.question_text,
+                type: question.type,
+                difficulty: question.difficulty,
+                order: question.order,
+                image_url: question.image_url,
+                answers: shuffledAnswers.map(answer => ({
+                    id: answer.id,
+                    text: answer.text
+                }))
+            };
+        });
 
         return res.status(200).send({
             session: {

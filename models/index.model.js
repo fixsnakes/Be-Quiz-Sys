@@ -308,48 +308,23 @@ UserModel.hasMany(RecentLoginModel, {
 RecentLoginModel.belongsTo(UserModel, {
   foreignKey: 'user_id'
 })
-
-// User N-N Exams through ExamPurchase (Purchased exams)
-// unique: false allows multiple purchases of the same exam (pay-per-attempt)
-UserModel.belongsToMany(ExamModel, {
-  through: ExamPurchaseModel,
+UserModel.hasMany(ExamPurchaseModel, {
   foreignKey: 'user_id',
-  otherKey: 'exam_id',
-  as: 'purchasedExams',
-  unique: false
+  as: 'purchases'
 });
-
-ExamModel.belongsToMany(UserModel, {
-  through: ExamPurchaseModel,
-  foreignKey: 'exam_id',
-  otherKey: 'user_id',
-  as: 'purchasedBy',
-  unique: false
-});
-
-// Direct associations for easier querying
 ExamPurchaseModel.belongsTo(UserModel, {
   foreignKey: 'user_id',
   as: 'user'
-  // Lưu ý: Sequelize tự động tạo FK nhưng MySQL sẽ đặt tên FK theo convention: ExamPurchase_ibfk_1, ExamPurchase_ibfk_2, ...
-  // Để có tên FK như 'ExamPurchase_user_id_fk', cần dùng migration hoặc tạo thủ công bằng SQL
 });
 
-ExamPurchaseModel.belongsTo(ExamModel, {
-  foreignKey: 'exam_id',
-  as: 'exam'
-  // Lưu ý: Sequelize tự động tạo FK nhưng MySQL sẽ đặt tên FK theo convention: ExamPurchase_ibfk_1, ExamPurchase_ibfk_2, ...
-  // Để có tên FK như 'ExamPurchase_exam_id_fk', cần dùng migration hoặc tạo thủ công bằng SQL
-});
-
+// Exam có nhiều bản ghi mua hàng
 ExamModel.hasMany(ExamPurchaseModel, {
   foreignKey: 'exam_id',
   as: 'purchases'
 });
-
-UserModel.hasMany(ExamPurchaseModel, {
-  foreignKey: 'user_id',
-  as: 'purchases'
+ExamPurchaseModel.belongsTo(ExamModel, {
+  foreignKey: 'exam_id',
+  as: 'exam'
 });
 
 // Exam_sessions 1-N Exam_cheating_logs

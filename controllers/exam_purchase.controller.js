@@ -1,4 +1,4 @@
-import { ExamModel, UserModel, ExamPurchaseModel } from "../models/index.model.js";
+import { ExamModel, UserModel, ExamPurchaseModel, TransactionHistoryModel } from "../models/index.model.js";
 import { Op } from "sequelize";
 import sequelize from "../config/db.config.js";
 
@@ -62,7 +62,7 @@ export const purchaseExam = async (req, res) => {
         // Bắt đầu transaction chỉ khi thực sự cần (khi update data)
         transaction = await sequelize.transaction();
 
-        // Trừ tiền và tạo bản ghi mua hàng
+        // Trừ tiền từ student và tạo bản ghi mua hàng
         newBalance = userBalance - examFee;
         await user.update({
             balance: newBalance
@@ -73,6 +73,48 @@ export const purchaseExam = async (req, res) => {
             exam_id: exam_id,
             purchase_price: exam.fee
         }, { transaction });
+
+        // Tạo transaction history cho student (purchase)
+        await TransactionHistoryModel.create({
+            user_id: userId,
+            transactionType: 'purchase',
+            referenceId: purchase.id,
+            amount: examFee,
+            beforeBalance: userBalance,
+            afterBalance: newBalance,
+            transactionStatus: 'success',
+            description: `Mua đề thi: ${exam.title || `Exam ID: ${exam_id}`}`
+        }, { transaction });
+
+        // Cộng tiền vào tài khoản teacher
+        if (exam.created_by) {
+            const teacher = await UserModel.findByPk(exam.created_by, { 
+                transaction,
+                lock: transaction.LOCK.UPDATE 
+            });
+            
+            if (teacher) {
+                const teacherBalance = parseFloat(teacher.balance || 0);
+                const teacherNewBalance = teacherBalance + examFee;
+                
+                await teacher.update({
+                    balance: teacherNewBalance
+                }, { transaction });
+
+                // Tạo transaction history cho teacher (revenue từ việc bán đề thi)
+                await TransactionHistoryModel.create({
+                    user_id: exam.created_by,
+                    transactionType: 'adjustment',
+                    transferType: 'in', // Đánh dấu là tiền vào (doanh thu)
+                    referenceId: purchase.id,
+                    amount: examFee,
+                    beforeBalance: teacherBalance,
+                    afterBalance: teacherNewBalance,
+                    transactionStatus: 'success',
+                    description: `Doanh thu từ đề thi: ${exam.title || `Exam ID: ${exam_id}`} - Student ID: ${userId}`
+                }, { transaction });
+            }
+        }
 
         await transaction.commit();
         transaction = null; // Đánh dấu transaction đã hoàn thành
