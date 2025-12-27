@@ -57,11 +57,33 @@ const computeSessionScore = async (session, student_id) => {
   const answeredQuestionIds = studentAnswers.map((answer) => answer.exam_question_id);
   const unansweredCount = allQuestions.length - answeredQuestionIds.length;
 
+  // Tính câu chưa trả lời vào wrong_count
+  wrongCount += unansweredCount;
+
   const examTotalScore = parseFloat(sessionWithExam.exam.total_score);
   const percentage = examTotalScore > 0 ? (totalScore / examTotalScore) * 100 : 0;
   const roundedPercentage = Math.round(percentage * 100) / 100;
 
   const now = new Date();
+
+  // Tạo bản ghi StudentAnswer cho các câu hỏi chưa trả lời
+  const unansweredQuestionIds = allQuestions
+    .map((q) => q.id)
+    .filter((qId) => !answeredQuestionIds.includes(qId));
+
+  if (unansweredQuestionIds.length > 0) {
+    const unansweredAnswers = unansweredQuestionIds.map((questionId) => ({
+      session_id: session.id,
+      exam_question_id: questionId,
+      selected_answer_id: null,
+      answer_text: null,
+      score: 0,
+      is_correct: false,
+      answered_at: now,
+    }));
+
+    await StudentAnswerModel.bulkCreate(unansweredAnswers);
+  }
 
   await sessionWithExam.update({
     status: "submitted",

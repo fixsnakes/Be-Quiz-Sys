@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import { getStudentExamStatus, getStudentAllExamStatuses } from "../services/student_exam_status.service.js";
-import { ExamModel, ClassesModel, ClassStudentModel } from "../models/index.model.js";
+import { ExamModel, ClassesModel, ClassStudentModel, ExamClassModel } from "../models/index.model.js";
 
 /**
  * Lấy trạng thái của student cho một exam cụ thể
@@ -39,11 +39,21 @@ export const getAllExamsWithStatus = async (req, res) => {
         });
         const classIds = student.map(s => s.class_id);
 
+        // Lấy exam_ids từ Exam_Classes cho các lớp mà student tham gia
+        const examIdsInClasses = await ExamClassModel.findAll({
+            where: { class_id: { [Op.in]: classIds } },
+            attributes: ['exam_id'],
+            raw: true
+        });
+        const examIdsFromClasses = [...new Set(examIdsInClasses.map(ec => ec.exam_id))];
+
+        // Kết hợp: exam có class_id trong classIds HOẶC exam_id trong Exam_Classes
         const exams = await ExamModel.findAll({
             where: {
                 [Op.or]: [
-                    { is_public: true },
-                    { class_id: { [Op.in]: classIds } }
+                    { is_public: true, class_id: null },
+                    { is_public: true, class_id: { [Op.in]: classIds } },
+                    ...(examIdsFromClasses.length > 0 ? [{ is_public: true, id: { [Op.in]: examIdsFromClasses } }] : [])
                 ]
             },
             include: [
@@ -51,6 +61,13 @@ export const getAllExamsWithStatus = async (req, res) => {
                     model: ClassesModel,
                     as: 'class',
                     attributes: ['id', 'className', 'classCode'],
+                    required: false
+                },
+                {
+                    model: ClassesModel,
+                    as: 'classes',
+                    attributes: ['id', 'className', 'classCode'],
+                    through: { attributes: [] },
                     required: false
                 }
             ],
@@ -128,12 +145,21 @@ export const getExamsByStatus = async (req, res) => {
         let filteredExamIds = null;
 
         if (status === 'not_started') {
+            // Lấy exam_ids từ Exam_Classes cho các lớp mà student tham gia
+            const examIdsInClasses = await ExamClassModel.findAll({
+                where: { class_id: { [Op.in]: classIds } },
+                attributes: ['exam_id'],
+                raw: true
+            });
+            const examIdsFromClasses = [...new Set(examIdsInClasses.map(ec => ec.exam_id))];
+
             // Lấy tất cả exams có thể làm
             exams = await ExamModel.findAll({
                 where: {
                     [Op.or]: [
-                        { is_public: true },
-                        { class_id: { [Op.in]: classIds } }
+                        { is_public: true, class_id: null },
+                        { is_public: true, class_id: { [Op.in]: classIds } },
+                        ...(examIdsFromClasses.length > 0 ? [{ is_public: true, id: { [Op.in]: examIdsFromClasses } }] : [])
                     ]
                 },
                 include: [
@@ -141,6 +167,13 @@ export const getExamsByStatus = async (req, res) => {
                         model: ClassesModel,
                         as: 'class',
                         attributes: ['id', 'className', 'classCode'],
+                        required: false
+                    },
+                    {
+                        model: ClassesModel,
+                        as: 'classes',
+                        attributes: ['id', 'className', 'classCode'],
+                        through: { attributes: [] },
                         required: false
                     }
                 ],
@@ -171,6 +204,13 @@ export const getExamsByStatus = async (req, res) => {
                         as: 'class',
                         attributes: ['id', 'className', 'classCode'],
                         required: false
+                    },
+                    {
+                        model: ClassesModel,
+                        as: 'classes',
+                        attributes: ['id', 'className', 'classCode'],
+                        through: { attributes: [] },
+                        required: false
                     }
                 ],
                 order: [['created_at', 'DESC']]
@@ -195,6 +235,13 @@ export const getExamsByStatus = async (req, res) => {
                         model: ClassesModel,
                         as: 'class',
                         attributes: ['id', 'className', 'classCode'],
+                        required: false
+                    },
+                    {
+                        model: ClassesModel,
+                        as: 'classes',
+                        attributes: ['id', 'className', 'classCode'],
+                        through: { attributes: [] },
                         required: false
                     }
                 ],

@@ -20,6 +20,7 @@ import DepositHistoryModel from "./deposit_history.model.js";
 import WithdrawHistoryModel from "./withdrawn_history.model.js";
 import TransactionHistoryModel from "./transactions_history.model.js";
 import ExamRatingModel from "./exam_rating.model.js";
+import ExamClassModel from "./exam_class.model.js";
 
 // User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
@@ -47,11 +48,36 @@ ClassesModel.belongsToMany(UserModel, {
   as: 'students'
 });
 
-// Classes 1-N Exams (class_id có thể null)
+// Classes 1-N Exams (class_id có thể null) - Backward compatibility, có thể deprecated sau
 ClassesModel.hasMany(ExamModel, {
   foreignKey: 'class_id',
   as: 'exams',
   onDelete: 'SET NULL'
+});
+
+// Exam N-N Classes through Exam_Classes (Many-to-many relationship)
+ExamModel.belongsToMany(ClassesModel, {
+  through: ExamClassModel,
+  foreignKey: 'exam_id',
+  otherKey: 'class_id',
+  as: 'classes'
+});
+
+ClassesModel.belongsToMany(ExamModel, {
+  through: ExamClassModel,
+  foreignKey: 'class_id',
+  otherKey: 'exam_id',
+  as: 'examsManyToMany'
+});
+
+ExamClassModel.belongsTo(ExamModel, {
+  foreignKey: 'exam_id',
+  as: 'exam'
+});
+
+ExamClassModel.belongsTo(ClassesModel, {
+  foreignKey: 'class_id',
+  as: 'class'
 });
 
 //User(1-N) PostClasses
@@ -456,4 +482,4 @@ ExamRatingModel.belongsTo(ExamResultModel, {
   as: 'result'
 });
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel, RecentLoginModel, ExamPurchaseModel, ExamCheatingLogModel, StudentExamStatusModel, DepositHistoryModel, WithdrawHistoryModel, TransactionHistoryModel, ExamRatingModel };
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel, RecentLoginModel, ExamPurchaseModel, ExamCheatingLogModel, StudentExamStatusModel, DepositHistoryModel, WithdrawHistoryModel, TransactionHistoryModel, ExamRatingModel, ExamClassModel };

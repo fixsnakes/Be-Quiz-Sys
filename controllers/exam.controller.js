@@ -1,4 +1,4 @@
-import { ExamModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel, StudentAnswerModel, ExamRatingModel, UserModel } from "../models/index.model.js";
+import { ExamModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel, StudentAnswerModel, ExamRatingModel, UserModel, ExamClassModel } from "../models/index.model.js";
 import { Op } from "sequelize";
 import sequelize from "../config/db.config.js";
 import { notifyExamAssignedToClass } from "../services/notification.service.js";
@@ -41,7 +41,7 @@ async function getExamAverageRating(examId) {
 export const createExam = async (req, res) => {
     try {
         const {
-            class_id,
+            class_ids, // Array of class_ids (có thể là empty array hoặc null để không gắn vào lớp nào)
             title,
             des,
             total_score,
@@ -64,18 +64,32 @@ export const createExam = async (req, res) => {
             });
         }
 
-        // Validate class chỉ khi có class_id (class_id có thể null)
-        if (class_id) {
-            const classInfo = await ClassesModel.findOne({
+        // Xử lý class_ids: phải là array hoặc null/undefined
+        let classIdsArray = [];
+        if (class_ids !== undefined && class_ids !== null) {
+            if (!Array.isArray(class_ids)) {
+                return res.status(400).send({
+                    message: 'class_ids must be an array or null/undefined'
+                });
+            }
+            classIdsArray = class_ids;
+        }
+
+        // Remove duplicates và filter null values
+        classIdsArray = [...new Set(classIdsArray.filter(id => id !== null && id !== undefined))];
+
+        // Validate classes: tất cả các class phải tồn tại và thuộc về teacher
+        if (classIdsArray.length > 0) {
+            const classes = await ClassesModel.findAll({
                 where: {
-                    id: class_id,
+                    id: classIdsArray,
                     teacher_id: created_by
                 }
             });
 
-            if (!classInfo) {
+            if (classes.length !== classIdsArray.length) {
                 return res.status(404).send({
-                    message: 'Class not found or you do not have permission to create exam for this class'
+                    message: 'One or more classes not found or you do not have permission to create exam for these classes'
                 });
             }
         }
@@ -115,8 +129,9 @@ export const createExam = async (req, res) => {
         }
 
         // Create exam
+        // Giữ class_id (single) để backward compatibility với dữ liệu cũ, lấy class_id đầu tiên
         const exam = await ExamModel.create({
-            class_id: class_id || null, // Cho phép null (có thể gắn vào class sau)
+            class_id: classIdsArray.length > 0 ? classIdsArray[0] : null,
             title,
             des: des || null,
             total_score: total_score || 100,
@@ -132,17 +147,39 @@ export const createExam = async (req, res) => {
             image_url: image_url || null
         });
 
-        // Gửi thông báo cho students nếu exam được gắn vào class
-        if (class_id) {
-            try {
-                await notifyExamAssignedToClass(exam.id, class_id);
-            } catch (notifError) {
-                console.error('Error sending notification:', notifError);
-                // Không fail request nếu thông báo lỗi
+        // Tạo các bản ghi trong Exam_Classes nếu có class_ids
+        if (classIdsArray.length > 0) {
+            const examClassRecords = classIdsArray.map(cid => ({
+                exam_id: exam.id,
+                class_id: cid
+            }));
+
+            await ExamClassModel.bulkCreate(examClassRecords);
+
+            // Gửi thông báo cho students của tất cả các lớp
+            for (const cid of classIdsArray) {
+                try {
+                    await notifyExamAssignedToClass(exam.id, cid);
+                } catch (notifError) {
+                    console.error(`Error sending notification for class ${cid}:`, notifError);
+                    // Không fail request nếu thông báo lỗi
+                }
             }
         }
 
-        return res.status(201).send(exam);
+        // Lấy exam với các lớp đã gắn
+        const examWithClasses = await ExamModel.findByPk(exam.id, {
+            include: [
+                {
+                    model: ClassesModel,
+                    as: 'classes',
+                    attributes: ['id', 'className', 'classCode'],
+                    through: { attributes: [] }
+                }
+            ]
+        });
+
+        return res.status(201).send(examWithClasses || exam);
 
     } catch (error) {
         return res.status(500).send({ message: error.message });
@@ -163,6 +200,13 @@ export const getExamById = async (req, res) => {
                     model: ClassesModel,
                     as: 'class',
                     attributes: ['id', 'className', 'classCode'],
+                    required: false
+                },
+                {
+                    model: ClassesModel,
+                    as: 'classes',
+                    attributes: ['id', 'className', 'classCode'],
+                    through: { attributes: [] },
                     required: false
                 },
                 {
@@ -210,19 +254,44 @@ export const getExamById = async (req, res) => {
                 });
             }
 
-            if (exam.class_id) {
-                const isMember = await ClassStudentModel.findOne({
-                    where: {
-                        class_id: exam.class_id,
-                        student_id
-                    }
-                });
-
-                if (!isMember) {
-                    return res.status(403).send({
-                        message: 'You are not a member of this class. Cannot view this exam.'
-                    });
+            // Kiểm tra quyền truy cập: student phải là thành viên của ít nhất một lớp mà exam được gắn vào
+            let hasAccess = false;
+            
+            // Lấy danh sách class_ids từ Exam_Classes (many-to-many)
+            const examClasses = await ExamClassModel.findAll({
+                where: { exam_id: id },
+                attributes: ['class_id']
+            });
+            
+            const examClassIds = examClasses.map(ec => ec.class_id);
+            
+            // Nếu exam không có lớp nào gắn (examClassIds rỗng), cho phép truy cập nếu exam.is_public
+            if (examClassIds.length === 0 && !exam.class_id) {
+                hasAccess = true; // Exam public không gắn vào lớp nào
+            } else {
+                // Kiểm tra student có trong ít nhất một lớp không
+                // Bao gồm cả class_id cũ (backward compatibility)
+                const allClassIds = [...examClassIds];
+                if (exam.class_id && !allClassIds.includes(exam.class_id)) {
+                    allClassIds.push(exam.class_id);
                 }
+                
+                if (allClassIds.length > 0) {
+                    const isMember = await ClassStudentModel.findOne({
+                        where: {
+                            class_id: allClassIds,
+                            student_id,
+                            is_ban: false
+                        }
+                    });
+                    hasAccess = !!isMember;
+                }
+            }
+            
+            if (!hasAccess) {
+                return res.status(403).send({
+                    message: 'You are not a member of any class associated with this exam. Cannot view this exam.'
+                });
             }
 
             // Thêm thông tin về trạng thái exam
@@ -287,9 +356,30 @@ export const getExams = async (req, res) => {
                 created_by: userId
             };
 
-            // Filter by class if provided
+            // Filter by class if provided - tìm cả trong class_id và Exam_Classes
             if (class_id) {
-                whereCondition.class_id = class_id;
+                // Tìm exam có class_id trùng hoặc có trong Exam_Classes
+                const examIdsInClass = await ExamClassModel.findAll({
+                    where: { class_id: class_id },
+                    attributes: ['exam_id']
+                });
+                const examIdsArray = examIdsInClass.map(ec => ec.exam_id);
+                
+                // Kết hợp: exam có class_id = class_id HOẶC exam_id trong Exam_Classes
+                if (examIdsArray.length > 0) {
+                    // Tạo điều kiện mới với Op.or
+                    const classFilter = {
+                        [Op.or]: [
+                            { class_id: class_id },
+                            { id: { [Op.in]: examIdsArray } }
+                        ]
+                    };
+                    // Merge với whereCondition hiện tại
+                    whereCondition = { ...whereCondition, ...classFilter };
+                } else {
+                    // Nếu không có trong Exam_Classes, chỉ filter theo class_id
+                    whereCondition.class_id = class_id;
+                }
             }
 
             // Filter by is_paid if provided
@@ -309,6 +399,13 @@ export const getExams = async (req, res) => {
                         model: ClassesModel,
                         as: 'class',
                         attributes: ['id', 'className', 'classCode'],
+                        required: false
+                    },
+                    {
+                        model: ClassesModel,
+                        as: 'classes',
+                        attributes: ['id', 'className', 'classCode'],
+                        through: { attributes: [] },
                         required: false
                     }
                 ],
@@ -378,7 +475,7 @@ export const getExams = async (req, res) => {
                 [Op.or]: orConditions
             };
 
-            // Filter by class_id if provided
+            // Filter by class_id if provided - tìm cả trong class_id và Exam_Classes
             if (class_id) {
                 const isMember = await ClassStudentModel.findOne({
                     where: {
@@ -393,10 +490,28 @@ export const getExams = async (req, res) => {
                     });
                 }
 
-                whereCondition = {
-                    is_public: true,
-                    class_id
-                };
+                // Tìm exam có class_id trùng hoặc có trong Exam_Classes
+                const examIdsInClass = await ExamClassModel.findAll({
+                    where: { class_id: class_id },
+                    attributes: ['exam_id']
+                });
+                const examIdsArray = examIdsInClass.map(ec => ec.exam_id);
+                
+                // Kết hợp: exam có class_id = class_id HOẶC exam_id trong Exam_Classes
+                if (examIdsArray.length > 0) {
+                    whereCondition = {
+                        is_public: true,
+                        [Op.or]: [
+                            { class_id: class_id },
+                            { id: { [Op.in]: examIdsArray } }
+                        ]
+                    };
+                } else {
+                    whereCondition = {
+                        is_public: true,
+                        class_id
+                    };
+                }
             }
 
             // Filter by is_paid if provided
@@ -420,6 +535,13 @@ export const getExams = async (req, res) => {
                         model: ClassesModel,
                         as: 'class',
                         attributes: ['id', 'className', 'classCode'],
+                        required: false
+                    },
+                    {
+                        model: ClassesModel,
+                        as: 'classes',
+                        attributes: ['id', 'className', 'classCode'],
+                        through: { attributes: [] },
                         required: false
                     }
                 ],
@@ -492,7 +614,7 @@ export const updateExam = async (req, res) => {
         const { id } = req.params;
         const userId = req.userId;
         const {
-            class_id,
+            class_ids, // Array of class_ids (có thể là empty array hoặc null để bỏ gắn tất cả lớp)
             title,
             des,
             total_score,
@@ -577,28 +699,40 @@ export const updateExam = async (req, res) => {
         }
         // Nếu không gửi fee và không set is_paid = true, không validate (giữ nguyên fee hiện tại)
 
-        // Validate class_id nếu được cung cấp (cho phép null để bỏ gắn exam)
-        if (class_id !== undefined) {
-            // Nếu set class_id = null, cho phép (để bỏ gắn exam khỏi class)
-            if (class_id !== null) {
-                const classInfo = await ClassesModel.findOne({
+        // Xử lý class_ids: phải là array hoặc null/undefined
+        let classIdsArray = undefined;
+        if (class_ids !== undefined && class_ids !== null) {
+            if (!Array.isArray(class_ids)) {
+                return res.status(400).send({
+                    message: 'class_ids must be an array or null/undefined'
+                });
+            }
+            classIdsArray = class_ids;
+            // Remove duplicates và filter null values
+            classIdsArray = [...new Set(classIdsArray.filter(id => id !== null && id !== undefined))];
+        } else if (class_ids === null) {
+            // Nếu gửi null, có nghĩa là muốn bỏ gắn tất cả lớp
+            classIdsArray = [];
+        }
+
+        // Validate classes nếu có classIdsArray
+        if (classIdsArray !== undefined && classIdsArray.length > 0) {
+
+            if (classIdsArray.length > 0) {
+                const classes = await ClassesModel.findAll({
                     where: {
-                        id: class_id,
+                        id: classIdsArray,
                         teacher_id: userId
                     }
                 });
 
-                if (!classInfo) {
+                if (classes.length !== classIdsArray.length) {
                     return res.status(404).send({
-                        message: 'Class not found or you do not have permission to assign exam to this class'
+                        message: 'One or more classes not found or you do not have permission to assign exam to these classes'
                     });
                 }
             }
         }
-
-        // Lưu class_id cũ để kiểm tra xem có thay đổi không
-        const oldClassId = exam.class_id;
-        const newClassId = class_id !== undefined ? class_id : oldClassId;
 
         // Validate question creation method updates
         let normalizedQuestionMethodValue = undefined;
@@ -635,7 +769,10 @@ export const updateExam = async (req, res) => {
 
         // Update exam
         const updateData = {};
-        if (class_id !== undefined) updateData.class_id = class_id; // Cho phép set null để bỏ gắn exam
+        // Cập nhật class_id (backward compatibility): dùng class_id đầu tiên nếu có, hoặc null
+        if (classIdsArray !== undefined) {
+            updateData.class_id = classIdsArray.length > 0 ? classIdsArray[0] : null;
+        }
         if (title !== undefined) updateData.title = title;
         if (des !== undefined) updateData.des = des;
         if (total_score !== undefined) updateData.total_score = total_score;
@@ -656,24 +793,50 @@ export const updateExam = async (req, res) => {
 
         await exam.update(updateData);
 
-        // Gửi thông báo nếu exam được gắn vào class mới (từ null -> có giá trị, hoặc đổi class)
-        if (newClassId && newClassId !== oldClassId) {
-            try {
-                await notifyExamAssignedToClass(exam.id, newClassId);
-            } catch (notifError) {
-                console.error('Error sending notification:', notifError);
-                // Không fail request nếu thông báo lỗi
+        // Cập nhật Exam_Classes nếu classIdsArray được cung cấp
+        if (classIdsArray !== undefined) {
+            // Xóa tất cả các bản ghi cũ
+            await ExamClassModel.destroy({
+                where: { exam_id: exam.id }
+            });
+
+            // Tạo các bản ghi mới nếu có classIdsArray
+            if (classIdsArray.length > 0) {
+                const examClassRecords = classIdsArray.map(cid => ({
+                    exam_id: exam.id,
+                    class_id: cid
+                }));
+
+                await ExamClassModel.bulkCreate(examClassRecords);
+
+                // Gửi thông báo cho tất cả các lớp mới
+                for (const cid of classIdsArray) {
+                    try {
+                        await notifyExamAssignedToClass(exam.id, cid);
+                    } catch (notifError) {
+                        console.error(`Error sending notification for class ${cid}:`, notifError);
+                        // Không fail request nếu thông báo lỗi
+                    }
+                }
             }
         }
 
-        // Return updated exam
+        // Return updated exam với classes
         const updatedExam = await ExamModel.findOne({
             where: { id },
             include: [
                 {
                     model: ClassesModel,
                     as: 'class',
-                    attributes: ['id', 'className', 'classCode']
+                    attributes: ['id', 'className', 'classCode'],
+                    required: false
+                },
+                {
+                    model: ClassesModel,
+                    as: 'classes',
+                    attributes: ['id', 'className', 'classCode'],
+                    through: { attributes: [] },
+                    required: false
                 }
             ]
         });
@@ -871,10 +1034,28 @@ export const getAvailableExamsForStudent = async (req, res) => {
                 });
             }
 
-            whereCondition = {
-                is_public: true,
-                class_id
-            };
+            // Tìm exam có class_id trùng hoặc có trong Exam_Classes
+            const examIdsInClass = await ExamClassModel.findAll({
+                where: { class_id: class_id },
+                attributes: ['exam_id']
+            });
+            const examIdsArray = examIdsInClass.map(ec => ec.exam_id);
+            
+            // Kết hợp: exam có class_id = class_id HOẶC exam_id trong Exam_Classes
+            if (examIdsArray.length > 0) {
+                whereCondition = {
+                    is_public: true,
+                    [Op.or]: [
+                        { class_id: class_id },
+                        { id: { [Op.in]: examIdsArray } }
+                    ]
+                };
+            } else {
+                whereCondition = {
+                    is_public: true,
+                    class_id
+                };
+            }
         }
 
         const exams = await ExamModel.findAll({
@@ -884,6 +1065,13 @@ export const getAvailableExamsForStudent = async (req, res) => {
                     model: ClassesModel,
                     as: 'class',
                     attributes: ['id', 'className', 'classCode'],
+                    required: false
+                },
+                {
+                    model: ClassesModel,
+                    as: 'classes',
+                    attributes: ['id', 'className', 'classCode'],
+                    through: { attributes: [] },
                     required: false
                 }
             ],
