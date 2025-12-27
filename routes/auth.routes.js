@@ -3,13 +3,10 @@ import {
     signup,
     sendOTP,
     sendOTPForForgotPassword,
-    resetPassword,
-    sendOTPForWithdraw,
-    verifyOTPAndWithdraw
+    resetPassword
 } from "../controllers/auth.controller.js";
 
 import CheckDuplicateEmail from "../middleware/verifySignUp.js";
-import { verifyToken, verifyTeacher } from "../middleware/authJWT.js";
 
 const authRoutes = (app) => {
 
@@ -23,10 +20,6 @@ const authRoutes = (app) => {
     // Quên mật khẩu
     app.post('/api/auth/forgot-password/send-otp', sendOTPForForgotPassword);
     app.post('/api/auth/forgot-password/reset', resetPassword);
-
-    // Rút tiền với OTP (teacher)
-    app.post('/api/auth/withdraw/send-otp', verifyToken, verifyTeacher, sendOTPForWithdraw);
-    app.post('/api/auth/withdraw/verify-otp', verifyToken, verifyTeacher, verifyOTPAndWithdraw);
 }
 
 
