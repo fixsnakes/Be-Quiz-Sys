@@ -4,7 +4,7 @@ import { verifyToken, verifyAdmin, verifySuperAdmin } from "../../middleware/aut
 import { getDashboard } from "../../controllers/admin/dashboard.admin.controller.js";
 
 // Stats
-import { getStats30Days } from "../../controllers/admin/stats.admin.controller.js";
+
 
 // User Management
 import {
@@ -89,11 +89,7 @@ export default function(app) {
         getDashboard
     );
     
-    app.get(
-        "/api/admin/dashboard/stats-30-days",
-        [verifyToken, verifyAdmin],
-        getStats30Days
-    );
+
 
     // ==================== USER MANAGEMENT ====================
     // Only superadmin can manage users (CRUD operations and adjust balance)
