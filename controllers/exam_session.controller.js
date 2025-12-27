@@ -4,13 +4,13 @@ import { finalizeSessionResult } from "../services/exam_result.service.js";
 import { updateStatusOnStart } from "../services/student_exam_status.service.js";
 import sequelize from "../config/db.config.js";
 
-// Bắt đầu bài thi (Tạo exam session)
+// tao exam session
 export const startExam = async (req, res) => {
     try {
         const { exam_id } = req.params;
         const student_id = req.userId;
 
-        // Kiểm tra exam có tồn tại không
+        // check exam existed
         const exam = await ExamModel.findOne({
             where: { id: exam_id },
             include: [
@@ -28,10 +28,8 @@ export const startExam = async (req, res) => {
             });
         }
 
-        // Định nghĩa now ở đây để dùng cho toàn bộ hàm
+        // check date
         const now = new Date();
-
-        // Kiểm tra thời gian bài thi có hợp lệ không (chỉ khi có giới hạn thời gian)
         if (exam.start_time && exam.end_time) {
             const examStartTime = new Date(exam.start_time);
             const examEndTime = new Date(exam.end_time);
@@ -48,16 +46,16 @@ export const startExam = async (req, res) => {
                 });
             }
         }
-        // Nếu không có start_time và end_time (null), không kiểm tra thời gian (không giới hạn)
 
-        // Kiểm tra trạng thái public/private
+
+        // public or private
         if (!exam.is_public) {
             return res.status(403).send({
                 message: 'This exam is private and cannot be accessed by students'
             });
         }
 
-        // Kiểm tra nếu exam thuộc class, student phải là thành viên của class
+        // student class
         if (exam.class_id) {
             const isMember = await ClassStudentModel.findOne({
                 where: {
@@ -72,13 +70,14 @@ export const startExam = async (req, res) => {
                 });
             }
         } else if (!exam.is_public) {
-            // Nếu exam không thuộc class và không public, không cho phép
+            // check public
             return res.status(403).send({
                 message: 'This exam is not available for you'
             });
         }
 
-        // Kiểm tra xem student đã bắt đầu exam session chưa
+        // is start sesion
+        // check session existed
         const existingSession = await ExamSessionModel.findOne({
             where: {
                 exam_id: exam_id,
@@ -150,61 +149,61 @@ export const startExam = async (req, res) => {
                     balance: newBalance
                 }, { transaction });
 
-                // Tạo bản ghi purchase để tracking (pay-per-attempt)
+                const examfreeofTeacher = examFee * 0.8;
+                // purchase model
                 const purchase = await ExamPurchaseModel.create({
                     user_id: student_id,
                     exam_id: exam_id,
-                    purchase_price: examFee
+                    purchase_price: examfreeofTeacher
                 }, { transaction });
 
-                // Tạo transaction history cho student (purchase)
+                // transaction student
                 await TransactionHistoryModel.create({
                     user_id: student_id,
                     transactionType: 'purchase',
                     referenceId: purchase.id,
                     amount: examFee,
+                    transferType: 'out',
                     beforeBalance: userBalance,
                     afterBalance: newBalance,
                     transactionStatus: 'success',
-                    description: `Mua đề thi: ${exam.title || `Exam ID: ${exam_id}`}`
+                    description: `Mua đề thi: ${exam.title}`
                 }, { transaction });
 
-                // Cộng tiền vào tài khoản teacher
-                if (exam.created_by) {
-                    const teacher = await UserModel.findByPk(exam.created_by, { 
-                        transaction,
-                        lock: transaction.LOCK.UPDATE 
-                    });
-                    
-                    if (teacher) {
-                        const teacherBalance = parseFloat(teacher.balance || 0);
-                        const teacherNewBalance = teacherBalance + examFee;
-                        
-                        await teacher.update({
-                            balance: teacherNewBalance
-                        }, { transaction });
+                // add balance teacher
+                const teacher = await UserModel.findByPk(exam.created_by, {
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
 
-                        // Tạo transaction history cho teacher (revenue từ việc bán đề thi)
-                        await TransactionHistoryModel.create({
-                            user_id: exam.created_by,
-                            transactionType: 'adjustment',
-                            transferType: 'in', // Đánh dấu là tiền vào (doanh thu)
-                            referenceId: purchase.id,
-                            amount: examFee,
-                            beforeBalance: teacherBalance,
-                            afterBalance: teacherNewBalance,
-                            transactionStatus: 'success',
-                            description: `Doanh thu từ đề thi: ${exam.title || `Exam ID: ${exam_id}`} - Student ID: ${student_id}`
-                        }, { transaction });
-                    }
-                }
+                const teacherBalance = parseFloat(teacher.balance || 0);
+                const teacherNewBalance = teacherBalance + examfreeofTeacher;
+
+                await teacher.update({
+                    balance: teacherNewBalance
+                }, { transaction });
+
+                // transaction teacher
+                await TransactionHistoryModel.create({
+                    user_id: exam.created_by,
+                    transactionType: 'purchase',
+                    transferType: 'in',
+                    referenceId: purchase.id,
+                    amount: examfreeofTeacher,
+                    beforeBalance: teacherBalance,
+                    afterBalance: teacherNewBalance,
+                    transactionStatus: 'success',
+                    description: `${user.fullName} ` + 'mua lượt thi: ' + `${exam.title}`,
+                }, { transaction });
+
+
 
                 await transaction.commit();
                 transaction = null;
+
             } catch (paymentError) {
                 if (transaction) await transaction.rollback();
-
-                // Log the specific validation details
+                // error detail
                 if (paymentError.name === 'SequelizeValidationError') {
                     console.error("Validation Details:", paymentError.errors.map(e => ({
                         field: e.path,
@@ -473,7 +472,7 @@ export const getSessionQuestionsForStudent = async (req, res) => {
                 random = (random * 9301 + 49297) % 233280;
                 return random / 233280;
             };
-            
+
             for (let i = shuffled.length - 1; i > 0; i--) {
                 const j = Math.floor(next() * (i + 1));
                 [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -489,7 +488,7 @@ export const getSessionQuestionsForStudent = async (req, res) => {
             // Đảo đáp án với seed là session_id + question_id để mỗi câu hỏi có thứ tự đáp án khác nhau
             const answerSeed = session_id * 1000 + question.id;
             const shuffledAnswers = seededShuffle(question.answers, answerSeed);
-            
+
             return {
                 id: question.id,
                 question_text: question.question_text,

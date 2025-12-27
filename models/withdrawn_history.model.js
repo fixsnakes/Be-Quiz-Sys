@@ -19,13 +19,23 @@ const WithdrawHistoryModel = sequelize.define('WithdrawHistory', {
         type: DataTypes.STRING,
         allowNull: false
     },
-    bankNoaccount: {
+    bankAccountName: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+
+    bankAccountNumber: {
         type: DataTypes.STRING,
         allowNull: false
     },
     amount: {
         type: DataTypes.DECIMAL(19, 4),
         allowNull: false
+    },
+    withdraw_code: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
     },
     status: {
         type: DataTypes.ENUM('pending', 'success', 'failed'),

@@ -10,14 +10,12 @@ const ExamPurchaseModel = sequelize.define('ExamPurchase', {
     user_id: {
         type: DataTypes.INTEGER,
         allowNull: false
-        // Foreign key được tạo tự động từ belongsTo relationships trong index.model.js
-        // Không cần references ở đây để tránh conflict
+
     },
     exam_id: {
         type: DataTypes.INTEGER,
         allowNull: false
-        // Foreign key được tạo tự động từ belongsTo relationships trong index.model.js
-        // Không cần references ở đây để tránh conflict
+
     },
     purchase_price: {
         type: DataTypes.DECIMAL(10, 2),
@@ -34,6 +32,7 @@ const ExamPurchaseModel = sequelize.define('ExamPurchase', {
     indexes: [
         // Removed unique constraint to allow multiple purchases (pay-per-attempt)
         {
+            unique: false,
             fields: ['user_id', 'exam_id']
         }
     ]
