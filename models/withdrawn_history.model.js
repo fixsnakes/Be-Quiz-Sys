@@ -66,7 +66,8 @@ const WithdrawHistoryModel = sequelize.define('WithdrawHistory', {
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: false,
-    tableName: 'withdrawn_history'
+    tableName: 'withdrawn_history',
+    underscored: true
 });
 
 export default WithdrawHistoryModel;
