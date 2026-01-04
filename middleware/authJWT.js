@@ -48,26 +48,17 @@ export const verifyStudent = (req,res,next) => {
     next();
 }
 
-// Verify admin or superadmin (for general admin routes)
+// Verify admin
 export const verifyAdmin = (req, res, next) => {
-    if (req.role !== 'admin' && req.role !== 'superadmin') {
+    if (req.role !== 'admin') {
         return res.status(403).send({message: 'This action requires admin privileges'});
     }
 
     next();
 }
 
-// Verify only superadmin (for critical operations)
-export const verifySuperAdmin = (req, res, next) => {
-    if (req.role !== 'superadmin') {
-        return res.status(403).send({message: 'This action requires superadmin privileges'});
-    }
-
-    next();
-}
-
 export const verifyTeacherOrAdmin = (req, res, next) => {
-    if (req.role !== 'teacher' && req.role !== 'admin' && req.role !== 'superadmin') {
+    if (req.role !== 'teacher' && req.role !== 'admin') {
         return res.status(403).send({message: 'This action requires teacher or admin privileges'});
     }
 

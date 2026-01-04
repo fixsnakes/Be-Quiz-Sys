@@ -232,7 +232,7 @@ export const GetStudentFromClass = async (req,res) => {
         let userAttributes = [];
         let throughAttributes = [];
 
-        if (role === 'teacher' || role === 'admin' || role === 'superadmin') {
+        if (role === 'teacher' || role === 'admin') {
             // Teacher/Admin: đầy đủ thông tin
             userAttributes = ['id', 'fullName', 'email', 'balance', 'role', 'last_login', 'created_at'];
             throughAttributes = ['joined_at', 'is_ban'];

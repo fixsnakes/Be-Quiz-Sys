@@ -62,7 +62,7 @@ export const getAllExams = async (req, res) => {
                     [sequelize.fn('AVG', sequelize.col('results.percentage')), 'avg_score']
                 ]
             },
-            group: ['Exams.id', 'creator.id'],
+            group: ['Exams.id', 'creator.id', 'classes.id'],
             order: [[sortBy, order.toUpperCase()]],
             limit: parseInt(limit),
             offset: parseInt(offset),

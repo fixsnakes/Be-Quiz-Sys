@@ -1,4 +1,4 @@
-import { verifyToken, verifyAdmin, verifySuperAdmin } from "../../middleware/authJWT.js";
+import { verifyToken, verifyAdmin } from "../../middleware/authJWT.js";
 
 // Dashboard
 import { getDashboard } from "../../controllers/admin/dashboard.admin.controller.js";
@@ -92,41 +92,41 @@ export default function(app) {
 
 
     // ==================== USER MANAGEMENT ====================
-    // Only superadmin can manage users (CRUD operations and adjust balance)
+    // Admin can manage users (CRUD operations and adjust balance)
     
     app.get(
         "/api/admin/users",
-        [verifyToken, verifySuperAdmin],
+        [verifyToken, verifyAdmin],
         getAllUsers
     );
 
     app.get(
         "/api/admin/users/:id",
-        [verifyToken, verifySuperAdmin],
+        [verifyToken, verifyAdmin],
         getUserById
     );
 
     app.post(
         "/api/admin/users",
-        [verifyToken, verifySuperAdmin],
+        [verifyToken, verifyAdmin],
         createUser
     );
 
     app.put(
         "/api/admin/users/:id",
-        [verifyToken, verifySuperAdmin],
+        [verifyToken, verifyAdmin],
         updateUser
     );
 
     app.delete(
         "/api/admin/users/:id",
-        [verifyToken, verifySuperAdmin],
+        [verifyToken, verifyAdmin],
         deleteUser
     );
 
     app.post(
         "/api/admin/users/:id/adjust-balance",
-        [verifyToken, verifySuperAdmin],
+        [verifyToken, verifyAdmin],
         adjustUserBalance
     );
 
@@ -152,7 +152,7 @@ export default function(app) {
 
     app.delete(
         "/api/admin/exams/:id",
-        [verifyToken, verifySuperAdmin],  // Only superadmin can delete exams
+        [verifyToken, verifyAdmin],
         deleteExam
     );
 
@@ -178,7 +178,7 @@ export default function(app) {
 
     app.delete(
         "/api/admin/classes/:id",
-        [verifyToken, verifySuperAdmin],  // Only superadmin can delete classes
+        [verifyToken, verifyAdmin],
         deleteClass
     );
 
@@ -204,7 +204,7 @@ export default function(app) {
 
     app.post(
         "/api/admin/purchases/:id/refund",
-        [verifyToken, verifySuperAdmin],  // Only superadmin can refund purchases
+        [verifyToken, verifyAdmin],
         refundPurchase
     );
 

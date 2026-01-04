@@ -229,7 +229,7 @@ export const getDepositHistory = async (req, res) => {
 
         const offset = (page - 1) * limit;
         const userId = req.userId;
-        const isAdmin = req.role === 'admin' || req.role === 'superadmin';
+        const isAdmin = req.role === 'admin';
 
         const where = {};
 
@@ -340,7 +340,7 @@ export const getWithdrawHistory = async (req, res) => {
 
         const offset = (page - 1) * limit;
         const userId = req.userId;
-        const isAdmin = req.role === 'admin' || req.role === 'superadmin';
+        const isAdmin = req.role === 'admin';
 
         const where = {};
 
@@ -447,7 +447,7 @@ export const getTransactionHistory = async (req, res) => {
 
         const offset = (page - 1) * limit;
         const userId = req.userId;
-        const isAdmin = req.role === 'admin' || req.role === 'superadmin';
+        const isAdmin = req.role === 'admin';
 
         const where = {};
 
