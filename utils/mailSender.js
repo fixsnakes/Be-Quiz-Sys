@@ -13,7 +13,7 @@ export const sendOTPEmail = async (email, otp) => {
         await transporter.sendMail({
             from: "ptitagent@gmail.com",
             to: email,
-            subject: "OTP for verification",
+            subject: "OTP for verification account in PTIT edu",
             text: `Your OTP is ${otp}`
         })
     } catch (error) {

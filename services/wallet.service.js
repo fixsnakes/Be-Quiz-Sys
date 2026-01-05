@@ -1,27 +1,46 @@
-import { Op } from "sequelize";
 import { DepositHistoryModel } from "../models/index.model.js";
+import redisClient from "../config/redis.config.js";
 
 export const markExpiredDeposits = async () => {
     try {
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        // Lấy tất cả deposit_id từ Redis SET pending_deposits
+        const pendingDepositIds = await redisClient.sMembers('pending_deposits');
 
-        const expiredDeposits = await DepositHistoryModel.findAll({
-            where: {
-                deposit_status: "pending",
-                created_at: {
-                    [Op.lt]: fiveMinutesAgo,
-                },
-            },
-            limit: 50,
-        });
+        if (!pendingDepositIds || pendingDepositIds.length === 0) {
+            return;
+        }
 
-        for (const deposit of expiredDeposits) {
+        const expiredDepositIds = [];
+
+        // Kiểm tra TTL của từng deposit_id
+        for (const depositId of pendingDepositIds) {
+            const ttl = await redisClient.ttl(`pending_deposit:${depositId}`);
+
+            // Nếu TTL <= 0, deposit đã hết hạn
+            if (ttl <= 0) {
+                expiredDepositIds.push(depositId);
+            }
+        }
+
+        // Xử lý các deposit đã hết hạn
+        for (const depositId of expiredDepositIds) {
             try {
-                await deposit.update({
-                    deposit_status: "failed",
-                });
+                const deposit = await DepositHistoryModel.findByPk(depositId);
+
+                if (deposit && deposit.deposit_status === 'pending') {
+                    await deposit.update({
+                        deposit_status: "failed",
+                    });
+                }
+
+                // Xóa khỏi Redis
+                await redisClient.sRem('pending_deposits', depositId);
+                await redisClient.del(`pending_deposit:${depositId}`);
             } catch (err) {
-                console.error(`Failed to mark deposit ${deposit.id} as failed:`, err.message);
+                console.error(`Failed to mark deposit ${depositId} as failed:`, err.message);
+                // Vẫn xóa khỏi Redis để tránh lặp lại
+                await redisClient.sRem('pending_deposits', depositId);
+                await redisClient.del(`pending_deposit:${depositId}`);
             }
         }
     } catch (error) {

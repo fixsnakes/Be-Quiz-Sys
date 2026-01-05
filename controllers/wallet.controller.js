@@ -81,6 +81,18 @@ export const createDepositRequest = async (req, res) => {
             deposit_amount: depositAmount
         });
 
+        // Lưu deposit_id vào Redis với TTL 5 phút (300 giây)
+        // Sử dụng SET để lưu danh sách pending deposits
+        await redisClient.sAdd('pending_deposits', deposit.id.toString());
+        // Lưu thông tin deposit với TTL để tự động expire
+        await redisClient.set(`pending_deposit:${deposit.id}`, JSON.stringify({
+            deposit_id: deposit.id,
+            deposit_code: transactionCode,
+            user_id: userId,
+            amount: depositAmount,
+            created_at: new Date().toISOString()
+        }), { EX: 300 }); // 5 phút
+
         // Gọi sepay để lấy ảnh QR (base64)
         const amountParam = depositAmount.toFixed(3);
         const qrUrl = `https://qr.sepay.vn/img?bank=${encodeURIComponent(bankName)}&acc=${bankAccountNumber}&template=compact&amount=${amountParam}&des=${transactionCode}`;
@@ -197,6 +209,10 @@ export const sepayWebhook = async (req, res) => {
         }, { transaction });
 
         await transaction.commit();
+
+        // Xóa deposit khỏi Redis khi đã xử lý thành công
+        await redisClient.sRem('pending_deposits', deposit.id.toString());
+        await redisClient.del(`pending_deposit:${deposit.id}`);
 
         return res.status(200).json({ success: true, message: "Nạp tiền thành công", deposit_code: depositCode });
 

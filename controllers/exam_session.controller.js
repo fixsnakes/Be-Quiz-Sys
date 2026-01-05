@@ -61,9 +61,9 @@ export const startExam = async (req, res) => {
             where: { exam_id: exam.id },
             attributes: ['class_id']
         });
-        
+
         const examClassIds = examClasses.map(ec => ec.class_id);
-        
+
         // Nếu exam có lớp gắn, kiểm tra student có trong lớp không
         if (examClassIds.length > 0) {
             const isMember = await ClassStudentModel.findOne({
@@ -441,9 +441,9 @@ export const getSessionQuestionsForStudent = async (req, res) => {
                 where: { exam_id: exam.id },
                 attributes: ['class_id']
             });
-            
+
             const examClassIds = examClasses.map(ec => ec.class_id);
-            
+
             // Nếu exam có lớp gắn, kiểm tra student có trong lớp không
             if (examClassIds.length > 0) {
                 const isMember = await ClassStudentModel.findOne({
