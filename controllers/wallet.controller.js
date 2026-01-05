@@ -4,6 +4,8 @@ import { Op } from "sequelize";
 import { DepositHistoryModel, TransactionHistoryModel, UserModel, WithdrawHistoryModel } from "../models/index.model.js";
 import redisClient from "../config/redis.config.js";
 import { sendOTPEmail } from "../utils/mailSender.js";
+import CryptoJS from "crypto-js";
+import 'dotenv/config.js';
 
 const generateDepositCode = () => {
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -14,10 +16,10 @@ const generateDepositCode = () => {
     return code;
 };
 
-// Tạo mã deposit_code unique (check DB, tránh trùng)
+//deposit_code unique
 const generateUniqueDepositCode = async () => {
     let code;
-    // Lặp tối đa vài lần cho an toàn
+
     for (let i = 0; i < 5; i++) {
         code = generateDepositCode();
         const existing = await DepositHistoryModel.findOne({
@@ -31,33 +33,19 @@ const generateUniqueDepositCode = async () => {
     return `${generateDepositCode()}-${Math.floor(Math.random() * 1000)}`;
 };
 
-// Tạo mã withdraw_code unique (check DB, tránh trùng)
-const generateUniqueWithdrawCode = async () => {
-    let code;
-    for (let i = 0; i < 5; i++) {
-        code = generateDepositCode(); // Dùng cùng hàm generate
-        const existing = await WithdrawHistoryModel.findOne({
-            where: { withdraw_code: code },
-            attributes: ["id"]
-        });
-        if (!existing) {
-            return code;
-        }
-    }
-    return `${generateDepositCode()}-${Math.floor(Math.random() * 1000)}`;
-};
+// ma hoa payload cho qrCode gen
+
+
 
 // Tạo yêu cầu nạp tiền: lưu pending và trả về QR base64
 export const createDepositRequest = async (req, res) => {
-    const { bankName, bankAccountName, bankAccountNumber, amount } = req.body;
+    const { amount } = req.body;
     const userId = req.userId;
 
-    if (!bankName || !bankAccountName || !bankAccountNumber || !amount) {
-        return res.status(400).json({
-            success: false,
-            message: "Thiếu bankName, bankAccountName, bankAccountNumber hoặc amount"
-        });
-    }
+    const bankName = process.env.BANK_NAME;
+    const bankAccountName = process.env.BANK_ACCOUNT_NAME;
+    const bankAccountNumber = process.env.BANK_ACCOUNT_NUMBER;
+
 
     const depositAmount = parseFloat(amount);
     if (Number.isNaN(depositAmount) || depositAmount <= 0) {
@@ -81,8 +69,7 @@ export const createDepositRequest = async (req, res) => {
             deposit_amount: depositAmount
         });
 
-        // Lưu deposit_id vào Redis với TTL 5 phút (300 giây)
-        // Sử dụng SET để lưu danh sách pending deposits
+        // luu deposit vao ttl redis
         await redisClient.sAdd('pending_deposits', deposit.id.toString());
         // Lưu thông tin deposit với TTL để tự động expire
         await redisClient.set(`pending_deposit:${deposit.id}`, JSON.stringify({

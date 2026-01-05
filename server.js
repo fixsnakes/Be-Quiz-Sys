@@ -27,7 +27,6 @@ import teacherDashboardRoutes from "./routes/teacher_dashboard.routes.js";
 import walletRoutes from "./routes/wallet.routes.js";
 import { startDepositExpiryScheduler } from "./services/wallet.service.js";
 import uploadRoutes from "./routes/upload.routes.js";
-import { ExamPurchaseModel } from "./models/index.model.js";
 import postRoutes from "./routes/posts.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";

@@ -1,4 +1,4 @@
-import { UserModel, ClassesModel,ClassStudentModel } from "../models/index.model.js";
+import { UserModel, ClassesModel, ClassStudentModel } from "../models/index.model.js";
 import { notifyStudentJoinedClass } from "../services/notification.service.js";  // Import từ index.model.js
 
 export const createClass = async (req, res) => {
@@ -33,21 +33,21 @@ export const getClasses = async (req, res) => {
         const teacherInclude = {
             model: UserModel,
             as: 'teacher',
-            attributes: ['fullName'] 
+            attributes: ['fullName']
         };
 
         let result;
 
         if (role === 'teacher') {
-           
+
             result = await ClassesModel.findAndCountAll({
                 where: {
                     teacher_id: userId
                 },
                 limit: limit,
                 offset: offset,
-                include:teacherInclude
-      
+                include: teacherInclude
+
             });
 
             // Đếm số học sinh cho mỗi lớp
@@ -65,9 +65,9 @@ export const getClasses = async (req, res) => {
                 })
             );
 
-            return res.status(200).send({ 
-                status: true, 
-                data: classesWithStudentCount, 
+            return res.status(200).send({
+                status: true,
+                data: classesWithStudentCount,
                 total: result.count,
                 pagination: {
                     limit,
@@ -77,7 +77,7 @@ export const getClasses = async (req, res) => {
         } else {
 
             console.log(userId)
-          
+
             result = await ClassesModel.findAndCountAll({
                 limit: limit,
                 offset: offset,
@@ -86,21 +86,21 @@ export const getClasses = async (req, res) => {
                         model: UserModel,
                         as: 'students',
                         where: {
-                            id: userId 
+                            id: userId
                         },
-                        attributes: [] 
+                        attributes: []
                     },
 
                     teacherInclude,
                 ],
 
-                
+
             });
         }
 
-        return res.status(200).send({ 
-            status: true, 
-            data: result.rows, 
+        return res.status(200).send({
+            status: true,
+            data: result.rows,
             total: result.count,
             pagination: {
                 limit,
@@ -123,7 +123,7 @@ export const joinClassByCode = async (req, res) => {
         const code = req.query.code;
 
 
-       
+
 
         const joinClassInfo = await ClassesModel.findOne({
             where: {
@@ -132,13 +132,13 @@ export const joinClassByCode = async (req, res) => {
         });
 
         if (!joinClassInfo) {
-            return res.status(404).send({status: false, message: "Class not found"});
+            return res.status(404).send({ status: false, message: "Class not found" });
         }
 
         const existingEnrollment = await ClassStudentModel.findOne({
             where: {
                 class_id: joinClassInfo.id,
-                student_id: userId          
+                student_id: userId
             }
         });
 
@@ -149,12 +149,12 @@ export const joinClassByCode = async (req, res) => {
             return res.status(400).send({ status: false, message: "You have already joined this class" });
         }
 
-    
+
         const classStudent = await ClassStudentModel.create({
             class_id: joinClassInfo.id,
             student_id: userId,
             joined_at: new Date(),
-            is_ban: false  
+            is_ban: false
         });
 
         // Gửi thông báo cho giáo viên
@@ -162,21 +162,21 @@ export const joinClassByCode = async (req, res) => {
             await notifyStudentJoinedClass(userId, joinClassInfo.id);
         } catch (notifError) {
             console.error('Error sending notification:', notifError);
-            
+
         }
 
         return res.status(200).send({ status: true, class: classStudent });
 
     } catch (error) {
 
-        return res.status(500).send({ status: false,message: error.message });
+        return res.status(500).send({ status: false, message: error.message });
     }
 };
 
 //get list student from class
 
-export const GetStudentFromClass = async (req,res) => {
-    try{
+export const GetStudentFromClass = async (req, res) => {
+    try {
         const role = req.role;
         const userId = req.userId;
         const classCode = req.query.class || req.query.classCode;
@@ -191,7 +191,7 @@ export const GetStudentFromClass = async (req,res) => {
                     classCode: classCode.toUpperCase()
                 }
             });
-        } 
+        }
         // Nếu không có classCode, tìm theo class_id
         else if (classId) {
             classInfor = await ClassesModel.findOne({
@@ -200,14 +200,14 @@ export const GetStudentFromClass = async (req,res) => {
                 }
             });
         } else {
-            return res.status(400).send({ 
-                message: "Thiếu thông tin: cần cung cấp class (classCode) hoặc class_id" 
+            return res.status(400).send({
+                message: "Thiếu thông tin: cần cung cấp class (classCode) hoặc class_id"
             });
         }
 
-        if(!classInfor){
-            return res.status(404).send({ 
-                message: "Không tìm thấy lớp học" 
+        if (!classInfor) {
+            return res.status(404).send({
+                message: "Không tìm thấy lớp học"
             });
         }
 
@@ -222,8 +222,8 @@ export const GetStudentFromClass = async (req,res) => {
             });
 
             if (!isMember) {
-                return res.status(403).send({ 
-                    message: "Bạn không thuộc lớp học này hoặc đã bị cấm" 
+                return res.status(403).send({
+                    message: "Bạn không thuộc lớp học này hoặc đã bị cấm"
                 });
             }
         }
@@ -246,7 +246,7 @@ export const GetStudentFromClass = async (req,res) => {
             where: {
                 id: classInfor.id
             },
-            
+
             include: [
                 {
                     model: UserModel,
@@ -261,34 +261,34 @@ export const GetStudentFromClass = async (req,res) => {
         })
 
         return res.status(200).send(listStudent)
-    }catch(error){
-        return res.status(500).send({message: error.message})
+    } catch (error) {
+        return res.status(500).send({ message: error.message })
     }
 }
 
 //Ban/Unban student
 
-export const BanStudent = async(req,res) => {
-    try{
+export const BanStudent = async (req, res) => {
+    try {
 
-        const {classId, class_id, student_id, is_banned} = req.body;
+        const { classId, class_id, student_id, is_banned } = req.body;
 
         // Support both classId and class_id for backward compatibility
         const classIdValue = classId || class_id;
 
         // Validate required fields
         if (!classIdValue || !student_id) {
-            return res.status(400).send({ 
-                status: false, 
-                message: 'Missing required fields: classId (or class_id) and student_id' 
+            return res.status(400).send({
+                status: false,
+                message: 'Missing required fields: classId (or class_id) and student_id'
             });
         }
 
         // Validate is_banned is boolean
         if (typeof is_banned !== 'boolean') {
-            return res.status(400).send({ 
-                status: false, 
-                message: 'is_banned must be a boolean value' 
+            return res.status(400).send({
+                status: false,
+                message: 'is_banned must be a boolean value'
             });
         }
 
@@ -301,9 +301,9 @@ export const BanStudent = async(req,res) => {
         })
 
         if (!classStudent) {
-            return res.status(404).send({ 
-                status: false, 
-                message: 'Student not found in this class' 
+            return res.status(404).send({
+                status: false,
+                message: 'Student not found in this class'
             });
         }
 
@@ -320,8 +320,8 @@ export const BanStudent = async(req,res) => {
                 is_ban: is_banned
             }
         });
-        
-    }catch(error){
+
+    } catch (error) {
         console.error('Error updating student ban status:', error);
         return res.status(500).send({
             status: false,
@@ -339,9 +339,9 @@ export const updateClass = async (req, res) => {
 
         // Validate required fields
         if (!className || className.trim() === '') {
-            return res.status(400).send({ 
+            return res.status(400).send({
                 status: false,
-                message: 'className is required and cannot be empty' 
+                message: 'className is required and cannot be empty'
             });
         }
 
@@ -354,9 +354,9 @@ export const updateClass = async (req, res) => {
         });
 
         if (!classToUpdate) {
-            return res.status(404).send({ 
+            return res.status(404).send({
                 status: false,
-                message: 'Class not found or you do not have permission to update this class' 
+                message: 'Class not found or you do not have permission to update this class'
             });
         }
 
@@ -385,22 +385,22 @@ export const updateClass = async (req, res) => {
 
     } catch (error) {
         console.error('Error updating class:', error);
-        return res.status(500).send({ 
+        return res.status(500).send({
             status: false,
-            message: error.message || 'Internal server error' 
+            message: error.message || 'Internal server error'
         });
     }
 };
 
 // Delete Class
-export const DeleteClass = async(req,res) => {
-    try{
+export const DeleteClass = async (req, res) => {
+    try {
 
-        const {classId} = req.body
+        const { class_id } = req.query;
 
         const deletedClass = await ClassesModel.destroy({
             where: {
-                id: classId
+                id: class_id
             }
         })
 
@@ -411,7 +411,7 @@ export const DeleteClass = async(req,res) => {
 
         return res.status(200).send("Delete Successfully")
 
-    }catch(error){
-        return res.status(500).send({message: message.error})
+    } catch (error) {
+        return res.status(500).send({ message: error.message })
     }
 }

@@ -17,16 +17,18 @@ const WithdrawHistoryModel = sequelize.define('WithdrawHistory', {
     },
     bankName: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        field: 'bankName'
     },
     bankAccountName: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        field: 'bankAccountName'
     },
-
     bankAccountNumber: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
+        field: 'bankAccountNumber'
     },
     amount: {
         type: DataTypes.DECIMAL(19, 4),
@@ -67,7 +69,7 @@ const WithdrawHistoryModel = sequelize.define('WithdrawHistory', {
     createdAt: 'created_at',
     updatedAt: false,
     tableName: 'withdrawn_history',
-    underscored: true
+    underscored: false
 });
 
 export default WithdrawHistoryModel;
