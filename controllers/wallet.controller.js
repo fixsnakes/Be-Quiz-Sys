@@ -4,7 +4,6 @@ import { Op } from "sequelize";
 import { DepositHistoryModel, TransactionHistoryModel, UserModel, WithdrawHistoryModel } from "../models/index.model.js";
 import redisClient from "../config/redis.config.js";
 import { sendOTPEmail } from "../utils/mailSender.js";
-import { createNotification } from "../services/notification.service.js";
 import CryptoJS from "crypto-js";
 import 'dotenv/config.js';
 
@@ -197,32 +196,6 @@ export const sepayWebhook = async (req, res) => {
         }, { transaction });
 
         await transaction.commit();
-
-
-        // Tạo thông báo cho người dùng khi nạp tiền thành công
-        try {
-            const title = 'Nạp tiền thành công';
-            const message = `Bạn đã nạp thành công ${transferAmount.toLocaleString('vi-VN')} VNĐ vào tài khoản. Số dư hiện tại: ${afterBalance.toLocaleString('vi-VN')} VNĐ`;
-            const notificationData = {
-                deposit_id: deposit.id,
-                deposit_code: depositCode,
-                amount: transferAmount,
-                beforeBalance: beforeBalance,
-                afterBalance: afterBalance,
-                transaction_id: null // Có thể lấy từ TransactionHistoryModel nếu cần
-            };
-
-            await createNotification(
-                deposit.user_id,
-                'deposit_success',
-                title,
-                message,
-                notificationData
-            );
-        } catch (notificationError) {
-            // Nếu tạo notification lỗi, chỉ log, không ảnh hưởng đến response
-            console.error('Error creating deposit notification:', notificationError);
-        }
 
         // Xóa deposit khỏi Redis khi đã xử lý thành công
         await redisClient.sRem('pending_deposits', deposit.id.toString());
