@@ -16,8 +16,6 @@ export const getAllUsers = async (req, res) => {
         } = req.query;
         
         const offset = (page - 1) * limit;
-        
-        // Build where clause
         const whereClause = {};
         
         if (role) {
@@ -76,8 +74,7 @@ export const getUserById = async (req, res) => {
                 message: "User not found"
             });
         }
-        
-        // Get additional statistics based on role
+
         let statistics = {};
         
         if (user.role === 'teacher') {
@@ -127,8 +124,7 @@ export const getUserById = async (req, res) => {
 export const createUser = async (req, res) => {
     try {
         const { fullName, email, password, role, balance } = req.body;
-        
-        // Validation
+
         if (!fullName || !email || !password || !role) {
             return res.status(400).json({
                 success: false,
@@ -142,8 +138,7 @@ export const createUser = async (req, res) => {
                 message: "Invalid role"
             });
         }
-        
-        // Check if email exists
+
         const existingUser = await UserModel.findOne({ where: { email } });
         if (existingUser) {
             return res.status(400).json({
@@ -151,17 +146,15 @@ export const createUser = async (req, res) => {
                 message: "Email already exists"
             });
         }
-        
-        // Create user (password stored as plaintext to match existing auth system)
+
         const user = await UserModel.create({
             fullName,
             email,
-            password: password,  // Plaintext to match auth.controller.js
+            password: password, 
             role,
             balance: balance || 0
         });
-        
-        // Remove password from response
+
         const userResponse = user.toJSON();
         delete userResponse.password;
         
@@ -194,8 +187,7 @@ export const updateUser = async (req, res) => {
                 message: "User not found"
             });
         }
-        
-        // Update fields
+
         if (fullName) user.fullName = fullName;
         if (email) user.email = email;
         if (role && ['student', 'teacher', 'admin'].includes(role)) user.role = role;
@@ -234,8 +226,7 @@ export const deleteUser = async (req, res) => {
                 message: "User not found"
             });
         }
-        
-        // Don't allow deleting yourself
+
         if (parseInt(id) === req.userId) {
             return res.status(400).json({
                 success: false,
@@ -293,9 +284,7 @@ export const adjustUserBalance = async (req, res) => {
         
         user.balance = newBalance;
         await user.save();
-        
-        // TODO: Create transaction record for audit
-        
+
         return res.status(200).json({
             success: true,
             message: "Balance adjusted successfully",

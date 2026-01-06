@@ -18,8 +18,7 @@ export const getAllPurchases = async (req, res) => {
         } = req.query;
         
         const offset = (page - 1) * limit;
-        
-        // Build where clause
+
         const whereClause = {};
         
         if (user_id) whereClause.user_id = user_id;
@@ -54,8 +53,7 @@ export const getAllPurchases = async (req, res) => {
             limit: parseInt(limit),
             offset: parseInt(offset)
         });
-        
-        // Calculate summary
+
         const totalRevenue = await ExamPurchaseModel.sum('purchase_price', { where: whereClause });
         
         return res.status(200).json({
@@ -165,8 +163,7 @@ export const refundPurchase = async (req, res) => {
                 message: "Purchase not found"
             });
         }
-        
-        // Determine refund amount (full or partial)
+
         const refundAmount = amount ? parseFloat(amount) : parseFloat(purchase.purchase_price);
         
         if (refundAmount > parseFloat(purchase.purchase_price)) {
@@ -175,19 +172,15 @@ export const refundPurchase = async (req, res) => {
                 message: "Refund amount cannot exceed purchase price"
             });
         }
-        
-        // Refund to user balance
+
         const user = purchase.user;
         user.balance = parseFloat(user.balance) + refundAmount;
         await user.save({ transaction });
-        
-        // Delete purchase record
+
         await purchase.destroy({ transaction });
         
         await transaction.commit();
-        
-        // TODO: Create transaction log for audit
-        
+
         return res.status(200).json({
             success: true,
             message: "Refund processed successfully",
@@ -225,8 +218,7 @@ export const getTransactionHistory = async (req, res) => {
         } = req.query;
         
         const offset = (page - 1) * limit;
-        
-        // Build date range filter
+
         const dateFilter = {};
         if (dateFrom || dateTo) {
             if (dateFrom) dateFilter[Op.gte] = new Date(dateFrom);
@@ -236,8 +228,7 @@ export const getTransactionHistory = async (req, res) => {
                 dateFilter[Op.lte] = endDate;
             }
         }
-        
-        // Build search filter for user
+
         const userSearchFilter = search ? {
             [Op.or]: [
                 { fullName: { [Op.like]: `%${search}%` } },
@@ -246,10 +237,9 @@ export const getTransactionHistory = async (req, res) => {
         } : {};
         
         let allTransactions = [];
-        
-        // Fetch deposits
+
         if (type === 'all' || type === 'deposit') {
-            const depositWhere = { deposit_status: 'success' }; // Only successful deposits
+            const depositWhere = { deposit_status: 'success' };
             if (Object.keys(dateFilter).length > 0) {
                 depositWhere.created_at = dateFilter;
             }

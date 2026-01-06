@@ -38,8 +38,7 @@ export const getAllClasses = async (req, res) => {
             limit: parseInt(limit),
             offset: parseInt(offset)
         });
-        
-        // Add student count
+
         const classesWithCount = rows.map(cls => {
             const classData = cls.toJSON();
             classData.studentCount = classData.students ? classData.students.length : 0;
@@ -129,8 +128,7 @@ export const deleteClass = async (req, res) => {
                 message: "Class not found"
             });
         }
-        
-        // Get counts for info - đếm exam qua Exam_Classes
+
         const examCount = await ExamClassModel.count({ where: { class_id: id } });
         
         await classData.destroy();
@@ -159,8 +157,7 @@ export const getClassStudents = async (req, res) => {
         const { page = 1, limit = 10 } = req.query;
         
         const offset = (page - 1) * parseInt(limit);
-        
-        // Check if class exists first
+
         const classExists = await ClassesModel.findByPk(id);
         if (!classExists) {
             return res.status(404).json({
@@ -168,11 +165,9 @@ export const getClassStudents = async (req, res) => {
                 message: "Class not found"
             });
         }
-        
-        // Get total count
+
         const totalStudents = await classExists.countStudents();
-        
-        // Get paginated students
+
         const students = await classExists.getStudents({
             attributes: ['id', 'fullName', 'email'],
             joinTableAttributes: ['joined_at'],
@@ -180,8 +175,7 @@ export const getClassStudents = async (req, res) => {
             offset: offset,
             order: [['fullName', 'ASC']]
         });
-        
-        // Format response theo đúng structure yêu cầu
+
         const formattedStudents = students.map(student => ({
             id: student.id,
             fullName: student.fullName,

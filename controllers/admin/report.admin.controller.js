@@ -40,8 +40,7 @@ const calculatePeriodStats = async (daysAgo, periodName) => {
             purchase_date: { [Op.between]: [startDate, endDate] }
         }
     }) || 0;
-    
-    // Previous period
+
     const prevDeposit = await DepositHistoryModel.sum('deposit_amount', {
         where: {
             deposit_status: 'success',
@@ -61,12 +60,10 @@ const calculatePeriodStats = async (daysAgo, periodName) => {
             purchase_date: { [Op.between]: [prevStartDate, prevEndDate] }
         }
     }) || 0;
-    
-    // Calculate revenue (deposits - withdrawals)
+
     const currentRevenue = currentDeposit - currentWithdrawal;
     const prevRevenue = prevDeposit - prevWithdrawal;
-    
-    // Calculate percent change
+
     const calcPercentChange = (current, previous) => {
         if (previous === 0) return current > 0 ? 100 : 0;
         return parseFloat((((current - previous) / previous) * 100).toFixed(1));
@@ -97,13 +94,11 @@ const calculatePeriodStats = async (daysAgo, periodName) => {
 export const getRevenueReport = async (req, res) => {
     try {
         const { year = new Date().getFullYear(), group_by = 'month' } = req.query;
-        
-        // Calculate summary for different periods
+
         const todayStats = await calculatePeriodStats(1, 'today');
         const sevenDaysStats = await calculatePeriodStats(7, '7days');
         const thirtyDaysStats = await calculatePeriodStats(30, '30days');
-        
-        // Monthly data for the year
+
         const monthlyData = [];
         for (let month = 1; month <= 12; month++) {
             const startDate = new Date(year, month - 1, 1);
@@ -130,8 +125,7 @@ export const getRevenueReport = async (req, res) => {
                 withdrawal: parseFloat(monthWithdrawal.toFixed(2))
             });
         }
-        
-        // Daily data for last 30 days
+
         const dailyData = [];
         for (let i = 29; i >= 0; i--) {
             const date = new Date();
@@ -206,11 +200,7 @@ export const getUserActivityReport = async (req, res) => {
         if (role) {
             whereClause.role = role;
         }
-        
-        // Total users registered
         const totalUsers = await UserModel.count({ where: whereClause });
-        
-        // New registrations by day
         const registrationsByDay = await UserModel.findAll({
             where: whereClause,
             attributes: [
@@ -222,8 +212,7 @@ export const getUserActivityReport = async (req, res) => {
             order: [[sequelize.fn('DATE', sequelize.col('created_at')), 'ASC']],
             raw: true
         });
-        
-        // Most active users (by exam submissions)
+
         const mostActiveUsers = await ExamResultModel.findAll({
             include: [
                 {
@@ -280,11 +269,9 @@ export const getExamStatsReport = async (req, res) => {
         
         if (class_id) whereClause.class_id = class_id;
         if (teacher_id) whereClause.created_by = teacher_id;
-        
-        // Total exams created
+
         const totalExams = await ExamModel.count({ where: whereClause });
-        
-        // Total submissions
+
         const totalSubmissions = await ExamResultModel.count({
             include: [{
                 model: ExamModel,
@@ -293,8 +280,7 @@ export const getExamStatsReport = async (req, res) => {
                 attributes: []
             }]
         });
-        
-        // Average score overall
+
         const avgScoreResult = await ExamResultModel.findOne({
             include: [{
                 model: ExamModel,
@@ -304,8 +290,7 @@ export const getExamStatsReport = async (req, res) => {
             }],
             attributes: [[sequelize.fn('AVG', sequelize.col('percentage')), 'avgScore']]
         });
-        
-        // Pass rate (assuming 50% is passing)
+
         const passedCount = await ExamResultModel.count({
             where: { percentage: { [Op.gte]: 50 } },
             include: [{

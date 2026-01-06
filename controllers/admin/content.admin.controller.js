@@ -2,9 +2,6 @@ import { PostClassesModel, PostCommentsModel, UserModel, ClassesModel } from "..
 import { Op } from "sequelize";
 
 // ==================== CONTENT MODERATION ====================
-
-// ========== Posts ==========
-
 export const getAllPosts = async (req, res) => {
     try {
         const { page = 1, limit = 10, class_id, user_id, search, sortBy = 'created_at', order = 'DESC' } = req.query;
@@ -39,8 +36,7 @@ export const getAllPosts = async (req, res) => {
             limit: parseInt(limit),
             offset: parseInt(offset)
         });
-        
-        // Add comment count
+
         const postsWithCount = rows.map(post => {
             const postData = post.toJSON();
             postData.commentCount = postData.comments ? postData.comments.length : 0;
@@ -84,14 +80,10 @@ export const hidePost = async (req, res) => {
                 message: "Post not found"
             });
         }
-        
-        // Add hidden field to post (you may need to add this field to model)
-        // For now, we'll use a workaround by updating title
+
         post.title = `[HIDDEN] ${post.title}`;
         await post.save();
-        
-        // TODO: Create moderation log
-        
+
         return res.status(200).json({
             success: true,
             message: "Post hidden successfully",
@@ -123,8 +115,7 @@ export const showPost = async (req, res) => {
                 message: "Post not found"
             });
         }
-        
-        // Remove [HIDDEN] prefix if exists
+
         if (post.title.startsWith('[HIDDEN] ')) {
             post.title = post.title.replace('[HIDDEN] ', '');
             await post.save();
@@ -160,8 +151,7 @@ export const deletePost = async (req, res) => {
                 message: "Post not found"
             });
         }
-        
-        // Get comment count before deletion
+
         const commentCount = await PostCommentsModel.count({ where: { post_id: id } });
         
         await post.destroy();
@@ -183,8 +173,6 @@ export const deletePost = async (req, res) => {
         });
     }
 };
-
-// ========== Comments ==========
 
 export const getAllComments = async (req, res) => {
     try {

@@ -7,8 +7,7 @@ export const broadcastNotification = async (req, res) => {
     try {
         const { title, message, target_type, target_role, user_ids, priority = 'medium', link } = req.body;
         const adminId = req.userId;
-        
-        // Validation
+
         if (!title || !message || !target_type) {
             return res.status(400).json({
                 success: false,
@@ -22,8 +21,7 @@ export const broadcastNotification = async (req, res) => {
                 message: "Invalid target_type. Must be: all, role, or specific_users"
             });
         }
-        
-        // Get target users
+
         let targetUsers = [];
         
         if (target_type === 'all') {

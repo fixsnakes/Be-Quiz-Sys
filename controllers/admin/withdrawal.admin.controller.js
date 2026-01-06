@@ -22,7 +22,6 @@ export const getAllWithdrawals = async (req, res) => {
             where.status = status;
         }
 
-        // Lọc theo thời gian
         if (fromDate || toDate) {
             where.created_at = {};
             if (fromDate) {
@@ -35,7 +34,6 @@ export const getAllWithdrawals = async (req, res) => {
             }
         }
 
-        // Include user và search theo email
         const includeOptions = [
             {
                 model: UserModel,
@@ -55,7 +53,6 @@ export const getAllWithdrawals = async (req, res) => {
             }
         ];
 
-        // Lấy danh sách withdrawals với pagination
         const { count, rows } = await WithdrawHistoryModel.findAndCountAll({
             where,
             include: includeOptions,
@@ -65,7 +62,6 @@ export const getAllWithdrawals = async (req, res) => {
             distinct: true
         });
 
-        // Tính toán summary statistics
         const summaryQuery = await WithdrawHistoryModel.findAll({
             attributes: [
                 'status',
@@ -76,7 +72,6 @@ export const getAllWithdrawals = async (req, res) => {
             raw: true
         });
 
-        // Khởi tạo summary với giá trị mặc định
         const summary = {
             totalPending: 0,
             totalApproved: 0,
@@ -85,7 +80,6 @@ export const getAllWithdrawals = async (req, res) => {
             totalAmountApproved: 0
         };
 
-        // Xử lý kết quả summary
         summaryQuery.forEach(item => {
             const status = item.status;
             const count = parseInt(item.count) || 0;
@@ -133,7 +127,6 @@ export const approveWithdrawal = async (req, res) => {
         const { admin_note } = req.body;
         const adminId = req.userId;
 
-        // Tìm withdrawal request
         const withdrawal = await WithdrawHistoryModel.findByPk(id);
 
         if (!withdrawal) {
@@ -143,7 +136,6 @@ export const approveWithdrawal = async (req, res) => {
             });
         }
 
-        // Kiểm tra trạng thái hiện tại
         if (withdrawal.status !== 'pending') {
             return res.status(400).json({
                 success: false,
@@ -151,7 +143,6 @@ export const approveWithdrawal = async (req, res) => {
             });
         }
 
-        // Cập nhật trạng thái
         withdrawal.status = 'approved';
         withdrawal.admin_note = admin_note || null;
         withdrawal.processed_by = adminId;
@@ -195,7 +186,6 @@ export const rejectWithdrawal = async (req, res) => {
             });
         }
 
-        // Tìm withdrawal request
         const withdrawal = await WithdrawHistoryModel.findByPk(id);
 
         if (!withdrawal) {
@@ -205,7 +195,6 @@ export const rejectWithdrawal = async (req, res) => {
             });
         }
 
-        // Kiểm tra trạng thái hiện tại (có thể reject pending hoặc approved)
         if (withdrawal.status !== 'pending' && withdrawal.status !== 'approved') {
             return res.status(400).json({
                 success: false,
@@ -213,7 +202,6 @@ export const rejectWithdrawal = async (req, res) => {
             });
         }
 
-        // Cập nhật trạng thái
         withdrawal.status = 'rejected';
         withdrawal.reject_reason = reject_reason;
         withdrawal.processed_by = adminId;

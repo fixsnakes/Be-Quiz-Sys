@@ -17,8 +17,7 @@ export const getAllExams = async (req, res) => {
         } = req.query;
         
         const offset = (page - 1) * limit;
-        
-        // Build where clause
+
         const whereClause = {};
         
         if (creator_id) whereClause.created_by = creator_id;
@@ -136,8 +135,7 @@ export const getExamById = async (req, res) => {
                 message: "Exam not found"
             });
         }
-        
-        // Get statistics
+
         const submissionCount = await ExamResultModel.count({ where: { exam_id: id } });
         const purchaseCount = await ExamPurchaseModel.count({ where: { exam_id: id } });
         
@@ -183,8 +181,7 @@ export const updateExam = async (req, res) => {
                 message: "Exam not found"
             });
         }
-        
-        // Update fields
+
         if (title) exam.title = title;
         if (des !== undefined) exam.des = des;
         if (minutes) exam.minutes = minutes;
@@ -224,8 +221,7 @@ export const deleteExam = async (req, res) => {
                 message: "Exam not found"
             });
         }
-        
-        // Get counts for info
+
         const questionCount = await QuestionModel.count({ where: { exam_id: id } });
         const submissionCount = await ExamResultModel.count({ where: { exam_id: id } });
         const purchaseCount = await ExamPurchaseModel.count({ where: { exam_id: id } });
