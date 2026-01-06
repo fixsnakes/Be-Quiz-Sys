@@ -223,7 +223,7 @@ export const notifyExamSubmitted = async (studentId, examId, score) => {
 /**
  * Thông báo khi teacher cập nhật feedback
  */
-export const notifyFeedbackUpdated = async (studentId, examId, examTitle) => {
+export const notifyFeedbackUpdated = async (studentId, examId, examTitle, sessionId) => {
     try {
         const exam = await ExamModel.findByPk(examId, {
             attributes: ['id', 'title']
@@ -237,7 +237,8 @@ export const notifyFeedbackUpdated = async (studentId, examId, examTitle) => {
         const message = `Giáo viên đã cập nhật feedback cho bài thi "${examTitle || exam.title}"`;
         const data = {
             exam_id: examId,
-            exam_title: examTitle || exam.title
+            exam_title: examTitle || exam.title,
+            session_id: sessionId || null
         };
 
         return await createNotification(

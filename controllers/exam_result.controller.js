@@ -534,7 +534,8 @@ export const updateFeedback = async (req, res) => {
                 await notifyFeedbackUpdated(
                     updatedResult.student_id,
                     updatedResult.exam.id,
-                    updatedResult.exam.title
+                    updatedResult.exam.title,
+                    updatedResult.session_id
                 );
             } catch (notifError) {
                 console.error('Error sending notification:', notifError);

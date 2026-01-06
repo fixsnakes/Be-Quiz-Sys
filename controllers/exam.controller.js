@@ -1,4 +1,4 @@
-import { ExamModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel, StudentAnswerModel, ExamRatingModel, UserModel, ExamClassModel } from "../models/index.model.js";
+import { ExamModel, ClassesModel, ClassStudentModel, QuestionModel, QuestionAnswerModel, StudentAnswerModel, ExamRatingModel, UserModel, ExamClassModel, ExamResultModel } from "../models/index.model.js";
 import { Op } from "sequelize";
 import sequelize from "../config/db.config.js";
 import { notifyExamAssignedToClass } from "../services/notification.service.js";
@@ -394,7 +394,7 @@ export const getExams = async (req, res) => {
                 offset: offsetNum
             });
 
-            // Thêm số câu hỏi và average rating cho mỗi exam
+            // Thêm số câu hỏi, average rating và submission count cho mỗi exam
             const examsWithQuestionCount = await Promise.all(
                 exams.map(async (exam) => {
                     const examData = exam.toJSON();
@@ -407,6 +407,12 @@ export const getExams = async (req, res) => {
                     const ratingInfo = await getExamAverageRating(exam.id);
                     examData.average_rating = ratingInfo.average_rating;
                     examData.total_ratings = ratingInfo.total_ratings;
+
+                    // Thêm submission count (số lượt làm bài)
+                    const submissionCount = await ExamResultModel.count({
+                        where: { exam_id: exam.id }
+                    });
+                    examData.submission_count = submissionCount;
 
                     return examData;
                 })
