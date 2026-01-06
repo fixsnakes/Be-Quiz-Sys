@@ -644,7 +644,7 @@ export const sendOTPForWithdraw = async (req, res) => {
             });
         }
 
-        // Kiểm tra số dư tối thiểu
+
         const minWithdrawAmount = 50000;
         if (withdrawAmount < minWithdrawAmount) {
             return res.status(400).json({
@@ -653,7 +653,6 @@ export const sendOTPForWithdraw = async (req, res) => {
             });
         }
 
-        // Kiểm tra user và số dư
         const user = await UserModel.findByPk(userId);
         if (!user) {
             return res.status(404).json({

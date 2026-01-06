@@ -160,7 +160,7 @@ export const sendOTPForForgotPassword = async (req, res) => {
         const user = await UserModel.findOne({ where: { email: email } });
         if (!user) {
 
-            return res.status(200).send({ message: "Nếu email tồn tại, mã OTP đã được gửi" });
+            return res.status(404).send({ message: "Email không tồn tại" });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
