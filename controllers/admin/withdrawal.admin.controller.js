@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { WithdrawHistoryModel, UserModel } from "../../models/index.model.js";
+import { WithdrawHistoryModel, UserModel, TransactionHistoryModel } from "../../models/index.model.js";
 import sequelize from "../../config/db.config.js";
 
 export const getAllWithdrawals = async (req, res) => {
@@ -122,14 +122,21 @@ export const getAllWithdrawals = async (req, res) => {
 };
 
 export const approveWithdrawal = async (req, res) => {
+    let transaction = null;
     try {
         const { id } = req.params;
         const { admin_note } = req.body;
         const adminId = req.userId;
 
-        const withdrawal = await WithdrawHistoryModel.findByPk(id);
+        transaction = await sequelize.transaction();
+
+        const withdrawal = await WithdrawHistoryModel.findByPk(id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        });
 
         if (!withdrawal) {
+            await transaction.rollback();
             return res.status(404).json({
                 success: false,
                 message: "Không tìm thấy yêu cầu rút tiền"
@@ -137,18 +144,41 @@ export const approveWithdrawal = async (req, res) => {
         }
 
         if (withdrawal.status !== 'pending') {
+            await transaction.rollback();
             return res.status(400).json({
                 success: false,
                 message: `Không thể duyệt yêu cầu rút tiền đã ở trạng thái '${withdrawal.status}'`
             });
         }
 
+        // Cập nhật withdrawal status
         withdrawal.status = 'approved';
         withdrawal.admin_note = admin_note || null;
         withdrawal.processed_by = adminId;
         withdrawal.processed_at = new Date();
 
-        await withdrawal.save();
+        await withdrawal.save({ transaction });
+
+        // Tìm và cập nhật transaction history
+        const withdrawAmount = parseFloat(withdrawal.amount);
+        const transactionHistory = await TransactionHistoryModel.findOne({
+            where: {
+                referenceId: withdrawal.id,
+                transactionType: 'withdraw'
+            },
+            transaction
+        });
+
+        if (transactionHistory) {
+            await transactionHistory.update({
+                transactionStatus: 'success',
+                description: admin_note
+                    ? `Rút tiền đã được duyệt: ${withdrawAmount.toLocaleString('vi-VN')} VNĐ - Mã: ${withdrawal.withdraw_code}. Ghi chú: ${admin_note}`
+                    : `Rút tiền đã được duyệt: ${withdrawAmount.toLocaleString('vi-VN')} VNĐ - Mã: ${withdrawal.withdraw_code}`
+            }, { transaction });
+        }
+
+        await transaction.commit();
 
         return res.status(200).json({
             success: true,
@@ -163,6 +193,13 @@ export const approveWithdrawal = async (req, res) => {
         });
 
     } catch (error) {
+        if (transaction) {
+            try {
+                await transaction.rollback();
+            } catch (rollbackError) {
+                console.error("Lỗi rollback transaction:", rollbackError);
+            }
+        }
         console.error("Lỗi khi duyệt yêu cầu rút tiền:", error);
         return res.status(500).json({
             success: false,
@@ -173,6 +210,7 @@ export const approveWithdrawal = async (req, res) => {
 };
 
 export const rejectWithdrawal = async (req, res) => {
+    let transaction = null;
     try {
         const { id } = req.params;
         const { reject_reason } = req.body;
@@ -186,9 +224,15 @@ export const rejectWithdrawal = async (req, res) => {
             });
         }
 
-        const withdrawal = await WithdrawHistoryModel.findByPk(id);
+        transaction = await sequelize.transaction();
+
+        const withdrawal = await WithdrawHistoryModel.findByPk(id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        });
 
         if (!withdrawal) {
+            await transaction.rollback();
             return res.status(404).json({
                 success: false,
                 message: "Không tìm thấy yêu cầu rút tiền"
@@ -196,18 +240,71 @@ export const rejectWithdrawal = async (req, res) => {
         }
 
         if (withdrawal.status !== 'pending' && withdrawal.status !== 'approved') {
+            await transaction.rollback();
             return res.status(400).json({
                 success: false,
                 message: `Không thể từ chối yêu cầu rút tiền đã ở trạng thái '${withdrawal.status}'`
             });
         }
 
+        // Nếu withdrawal đang ở trạng thái pending, cần hoàn tiền lại cho user
+        // (vì khi user tạo withdrawal request, tiền đã bị trừ)
+        if (withdrawal.status === 'pending') {
+            const user = await UserModel.findByPk(withdrawal.user_id, {
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            if (user) {
+                const withdrawAmount = parseFloat(withdrawal.amount);
+                const currentBalance = parseFloat(user.balance || 0);
+                const refundBalance = currentBalance + withdrawAmount;
+
+                await user.update({
+                    balance: refundBalance
+                }, { transaction });
+
+                // Tạo transaction history cho việc hoàn tiền
+                await TransactionHistoryModel.create({
+                    user_id: withdrawal.user_id,
+                    transactionType: 'adjustment',
+                    referenceId: withdrawal.id,
+                    amount: withdrawAmount,
+                    transferType: 'refund',
+                    beforeBalance: currentBalance,
+                    afterBalance: refundBalance,
+                    transactionStatus: 'success',
+                    description: `Hoàn tiền do yêu cầu rút tiền bị từ chối: ${withdrawAmount.toLocaleString('vi-VN')} VNĐ - Mã: ${withdrawal.withdraw_code}. Lý do: ${reject_reason}`
+                }, { transaction });
+            }
+        }
+
+        // Cập nhật withdrawal status
         withdrawal.status = 'rejected';
         withdrawal.reject_reason = reject_reason;
         withdrawal.processed_by = adminId;
         withdrawal.processed_at = new Date();
 
-        await withdrawal.save();
+        await withdrawal.save({ transaction });
+
+        // Tìm và cập nhật transaction history của withdrawal
+        const withdrawAmount = parseFloat(withdrawal.amount);
+        const transactionHistory = await TransactionHistoryModel.findOne({
+            where: {
+                referenceId: withdrawal.id,
+                transactionType: 'withdraw'
+            },
+            transaction
+        });
+
+        if (transactionHistory) {
+            await transactionHistory.update({
+                transactionStatus: 'failed',
+                description: `Yêu cầu rút tiền bị từ chối: ${withdrawAmount.toLocaleString('vi-VN')} VNĐ - Mã: ${withdrawal.withdraw_code}. Lý do: ${reject_reason}`
+            }, { transaction });
+        }
+
+        await transaction.commit();
 
         return res.status(200).json({
             success: true,
@@ -222,6 +319,13 @@ export const rejectWithdrawal = async (req, res) => {
         });
 
     } catch (error) {
+        if (transaction) {
+            try {
+                await transaction.rollback();
+            } catch (rollbackError) {
+                console.error("Lỗi rollback transaction:", rollbackError);
+            }
+        }
         console.error("Lỗi khi từ chối yêu cầu rút tiền:", error);
         return res.status(500).json({
             success: false,

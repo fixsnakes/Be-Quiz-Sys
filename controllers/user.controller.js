@@ -2,6 +2,7 @@ import { UserModel } from "../models/index.model.js";
 import { RecentLoginModel } from "../models/index.model.js";
 import { sendOTPEmail } from '../utils/mailSender.js';
 import redisClient from '../config/redis.config.js';
+import bcrypt from 'bcryptjs';
 
 // Get information of a user
 export const GetProfileInfo = async (req, res) => {
@@ -95,6 +96,7 @@ export const sendOTPForChangePassword = async (req, res) => {
 
         // Tạo OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log(otp);
         const changePasswordData = JSON.stringify({
             userId: userId,
             email: userInfo.email,
@@ -155,8 +157,9 @@ export const ChangePassword = async (req, res) => {
             });
         }
 
-        // Kiểm tra mật khẩu hiện tại
-        if (currentPassword !== userInfo.password) {
+        // Kiểm tra mật khẩu hiện tại (so sánh với hash)
+        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, userInfo.password);
+        if (!isCurrentPasswordValid) {
             return res.status(403).send({
                 status: false,
                 message: "Mật khẩu hiện tại không chính xác"
@@ -182,8 +185,9 @@ export const ChangePassword = async (req, res) => {
             });
         }
 
-        // Cập nhật mật khẩu mới
-        userInfo.password = newPassword;
+        // Hash mật khẩu mới và cập nhật
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        userInfo.password = hashedNewPassword;
         await userInfo.save()
 
         // Xóa OTP khỏi Redis sau khi đổi mật khẩu thành công
