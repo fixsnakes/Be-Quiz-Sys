@@ -192,7 +192,7 @@ export const sepayWebhook = async (req, res) => {
             afterBalance,
             transactionStatus: 'success',
             transferType: payload.transferType || 'bank',
-            description: payload.content || `Nạp tiền qua ${payload.gateway || deposit.bankName} - Mã: ${depositCode}`
+            description: `Nạp tiền thành công - Mã: ${depositCode}`
         }, { transaction });
 
         await transaction.commit();
