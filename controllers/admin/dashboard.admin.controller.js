@@ -6,7 +6,6 @@ import sequelize from "../../config/db.config.js";
 
 export const getDashboard = async (req, res) => {
     try {
-        // Get summary statistics
         const totalUsers = await UserModel.count();
         const totalStudents = await UserModel.count({ where: { role: 'student' } });
         const totalTeachers = await UserModel.count({ where: { role: 'teacher' } });
@@ -82,34 +81,42 @@ export const getDashboard = async (req, res) => {
             order: [[sequelize.fn('DATE', sequelize.col('start_time')), 'ASC']],
             raw: true
         });
-        
-        // Merge all daily stats by date
+
         const dailyStatsMap = {};
-        
+        const today = new Date();
+
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            dailyStatsMap[dateStr] = { 
+                date: dateStr, 
+                newUsers: 0, 
+                newExams: 0, 
+                examSessions: 0 
+            };
+        }
+
         newUsers.forEach(item => {
-            if (!dailyStatsMap[item.date]) {
-                dailyStatsMap[item.date] = { date: item.date, newUsers: 0, newExams: 0, examSessions: 0 };
+            if (dailyStatsMap[item.date]) {
+                dailyStatsMap[item.date].newUsers = parseInt(item.count);
             }
-            dailyStatsMap[item.date].newUsers = parseInt(item.count);
         });
         
         newExams.forEach(item => {
-            if (!dailyStatsMap[item.date]) {
-                dailyStatsMap[item.date] = { date: item.date, newUsers: 0, newExams: 0, examSessions: 0 };
+            if (dailyStatsMap[item.date]) {
+                dailyStatsMap[item.date].newExams = parseInt(item.count);
             }
-            dailyStatsMap[item.date].newExams = parseInt(item.count);
         });
         
         examSessions.forEach(item => {
-            if (!dailyStatsMap[item.date]) {
-                dailyStatsMap[item.date] = { date: item.date, newUsers: 0, newExams: 0, examSessions: 0 };
+            if (dailyStatsMap[item.date]) {
+                dailyStatsMap[item.date].examSessions = parseInt(item.count);
             }
-            dailyStatsMap[item.date].examSessions = parseInt(item.count);
         });
         
         const dailyStats = Object.values(dailyStatsMap).sort((a, b) => a.date.localeCompare(b.date));
-        
-        // Get popular exams (most purchases)
+
         const popularExams = await ExamModel.findAll({
             where: { is_paid: true },
             include: [
