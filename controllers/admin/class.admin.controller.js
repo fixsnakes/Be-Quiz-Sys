@@ -89,7 +89,7 @@ export const getClassById = async (req, res) => {
                 },
                 {
                     model: ExamModel,
-                    as: 'exams',
+                    as: 'examsManyToMany',
                     attributes: ['id', 'title', 'start_time', 'end_time', 'is_paid', 'fee']
                 }
             ]
