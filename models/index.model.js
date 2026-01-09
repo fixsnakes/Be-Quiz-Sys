@@ -21,6 +21,8 @@ import WithdrawHistoryModel from "./withdrawn_history.model.js";
 import TransactionHistoryModel from "./transactions_history.model.js";
 import ExamRatingModel from "./exam_rating.model.js";
 import ExamClassModel from "./exam_class.model.js";
+import SupportChatMessageModel from "./support_chat_message.model.js";
+import LiveKitRoomModel from "./livekit_room.model.js";
 
 // User(Teacher) 1-N Classes
 UserModel.hasMany(ClassesModel, {
@@ -475,4 +477,39 @@ ExamRatingModel.belongsTo(ExamResultModel, {
   as: 'result'
 });
 
-export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel, RecentLoginModel, ExamPurchaseModel, ExamCheatingLogModel, StudentExamStatusModel, DepositHistoryModel, WithdrawHistoryModel, TransactionHistoryModel, ExamRatingModel, ExamClassModel };
+// User 1-N SupportChatMessages
+UserModel.hasMany(SupportChatMessageModel, {
+  foreignKey: 'user_id',
+  as: 'supportChatMessages'
+});
+
+SupportChatMessageModel.belongsTo(UserModel, {
+  foreignKey: 'user_id',
+  as: 'user'
+});
+
+
+
+// User(Teacher) 1-N LiveKitRooms
+UserModel.hasMany(LiveKitRoomModel, {
+  foreignKey: 'teacher_id',
+  as: 'livekitRooms'
+});
+
+LiveKitRoomModel.belongsTo(UserModel, {
+  foreignKey: 'teacher_id',
+  as: 'teacher'
+});
+
+// Classes 1-N LiveKitRooms
+ClassesModel.hasMany(LiveKitRoomModel, {
+  foreignKey: 'class_id',
+  as: 'livekitRooms'
+});
+
+LiveKitRoomModel.belongsTo(ClassesModel, {
+  foreignKey: 'class_id',
+  as: 'class'
+});
+
+export { UserModel, ClassesModel, ClassStudentModel, ExamModel, QuestionModel, QuestionAnswerModel, ExamFavoriteModel, ExamCommentModel, ExamSessionModel, StudentAnswerModel, ExamResultModel, PostClassesModel, PostCommentsModel, NotificationModel, RecentLoginModel, ExamPurchaseModel, ExamCheatingLogModel, StudentExamStatusModel, DepositHistoryModel, WithdrawHistoryModel, TransactionHistoryModel, ExamRatingModel, ExamClassModel, SupportChatMessageModel, LiveKitRoomModel };

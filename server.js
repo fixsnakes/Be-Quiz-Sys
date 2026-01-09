@@ -28,6 +28,8 @@ import walletRoutes from "./routes/wallet.routes.js";
 import { startDepositExpiryScheduler } from "./services/wallet.service.js";
 import uploadRoutes from "./routes/upload.routes.js";
 import postRoutes from "./routes/posts.routes.js";
+import supportChatRoutes from "./routes/support_chat.routes.js";
+import livekitRoomRoutes from "./routes/livekit_room.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { initializeSocket } from "./config/socket.config.js";
@@ -78,6 +80,8 @@ adminRoutes(app)
 teacherDashboardRoutes(app)
 walletRoutes(app)
 uploadRoutes(app)
+app.use("/api/support-chat", supportChatRoutes)
+app.use("/api", livekitRoomRoutes)
 
 // Error handling middleware - phải đặt sau tất cả routes
 app.use((err, req, res, next) => {

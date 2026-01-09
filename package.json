@@ -20,6 +20,7 @@
     "geoip-lite": "^1.4.10",
     "install": "^0.13.0",
     "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.15.0",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
     "nodemailer": "^7.0.12",
